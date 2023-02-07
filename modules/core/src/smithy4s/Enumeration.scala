@@ -33,6 +33,7 @@ object Enumeration {
     def name: String
     def intValue: Int
     def hints: Hints
+    def enumerationHints: Hints
   }
 
   object Value {

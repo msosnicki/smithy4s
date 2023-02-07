@@ -9,11 +9,12 @@ import smithy4s.schema.Schema.enumeration
 
 /** some docs here */
 @deprecated
-sealed abstract class EnumWithDeprecations(_value: String, _name: String, _intValue: Int, _hints: Hints) extends Enumeration.Value {
+sealed abstract class EnumWithDeprecations(_value: String, _name: String, _intValue: Int, _hints: Hints, _enumerationHints: Hints) extends Enumeration.Value {
   override val value: String = _value
   override val name: String = _name
   override val intValue: Int = _intValue
   override val hints: Hints = _hints
+  override val enumerationHints: Hints = _enumerationHints
   @inline final def widen: EnumWithDeprecations = this
 }
 object EnumWithDeprecations extends Enumeration[EnumWithDeprecations] with ShapeTag.Companion[EnumWithDeprecations] {
@@ -25,8 +26,8 @@ object EnumWithDeprecations extends Enumeration[EnumWithDeprecations] with Shape
   )
 
   @deprecated
-  case object OLD extends EnumWithDeprecations("OLD", "OLD", 0, Hints(smithy.api.Deprecated(message = None, since = None)))
-  case object NEW extends EnumWithDeprecations("NEW", "NEW", 1, Hints())
+  case object OLD extends EnumWithDeprecations("OLD", "OLD", 0, Hints(smithy.api.Deprecated(message = None, since = None)), hints)
+  case object NEW extends EnumWithDeprecations("NEW", "NEW", 1, Hints(), hints)
 
   val values: List[EnumWithDeprecations] = List(
     OLD,

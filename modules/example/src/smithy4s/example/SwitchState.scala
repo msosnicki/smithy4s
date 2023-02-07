@@ -7,11 +7,12 @@ import smithy4s.ShapeId
 import smithy4s.ShapeTag
 import smithy4s.schema.Schema.enumeration
 
-sealed abstract class SwitchState(_value: String, _name: String, _intValue: Int, _hints: Hints) extends Enumeration.Value {
+sealed abstract class SwitchState(_value: String, _name: String, _intValue: Int, _hints: Hints, _enumerationHints: Hints) extends Enumeration.Value {
   override val value: String = _value
   override val name: String = _name
   override val intValue: Int = _intValue
   override val hints: Hints = _hints
+  override val enumerationHints: Hints = _enumerationHints
   @inline final def widen: SwitchState = this
 }
 object SwitchState extends Enumeration[SwitchState] with ShapeTag.Companion[SwitchState] {
@@ -19,8 +20,8 @@ object SwitchState extends Enumeration[SwitchState] with ShapeTag.Companion[Swit
 
   val hints: Hints = Hints.empty
 
-  case object ON extends SwitchState("ON", "ON", 0, Hints())
-  case object OFF extends SwitchState("OFF", "OFF", 1, Hints())
+  case object ON extends SwitchState("ON", "ON", 0, Hints(), hints)
+  case object OFF extends SwitchState("OFF", "OFF", 1, Hints(), hints)
 
   val values: List[SwitchState] = List(
     ON,
