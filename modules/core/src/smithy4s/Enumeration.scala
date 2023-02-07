@@ -29,11 +29,13 @@ trait Enumeration[E <: Enumeration.Value] extends ShapeTag.Companion[E] {
 object Enumeration {
 
   abstract class Value extends Product with Serializable {
+    type EnumType
+
     def value: String
     def name: String
     def intValue: Int
     def hints: Hints
-    def enumerationHints: Hints
+    def enumeration: EnumType
   }
 
   object Value {
