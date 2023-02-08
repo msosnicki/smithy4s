@@ -282,6 +282,7 @@ private[internals] object CollisionAvoidance {
     val BiFunctorAlgebra_ = NameRef("smithy4s.kinds", "BiFunctorAlgebra")
     val StreamingSchema_ = NameRef("smithy4s", "StreamingSchema")
     val Enumeration_ = NameRef("smithy4s", "Enumeration")
+    val EnumerationValue_ = NameRef("smithy4s", "EnumerationValue")
     val EnumValue_ = NameRef("smithy4s.schema", "EnumValue")
     val Newtype_ = NameRef("smithy4s", "Newtype")
     val Hints_ = NameRef("smithy4s", "Hints")

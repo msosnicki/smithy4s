@@ -1,6 +1,7 @@
 package smithy4s.example
 
 import smithy4s.Enumeration
+import smithy4s.EnumerationValue
 import smithy4s.Hints
 import smithy4s.Schema
 import smithy4s.ShapeId
@@ -8,12 +9,10 @@ import smithy4s.ShapeTag
 import smithy4s.schema.Schema.enumeration
 
 sealed abstract class LowHigh(_value: String, _name: String, _intValue: Int, _hints: Hints) extends Enumeration.Value {
-  override type EnumType = LowHigh.type
   override val value: String = _value
   override val name: String = _name
   override val intValue: Int = _intValue
   override val hints: Hints = _hints
-  override val enumeration: EnumType = LowHigh
   @inline final def widen: LowHigh = this
 }
 object LowHigh extends Enumeration[LowHigh] with ShapeTag.Companion[LowHigh] {
@@ -31,4 +30,14 @@ object LowHigh extends Enumeration[LowHigh] with ShapeTag.Companion[LowHigh] {
     HIGH,
   )
   implicit val schema: Schema[LowHigh] = enumeration(values).withId(id).addHints(hints)
+}
+object LowHighValues {
+  object LOW extends EnumerationValue[LowHigh] {
+    override val enumeration: Enumeration[LowHigh] = LowHigh
+    override val value: LowHigh = LowHigh.LOW
+  }
+  object HIGH extends EnumerationValue[LowHigh] {
+    override val enumeration: Enumeration[LowHigh] = LowHigh
+    override val value: LowHigh = LowHigh.HIGH
+  }
 }

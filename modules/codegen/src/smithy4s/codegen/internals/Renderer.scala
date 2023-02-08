@@ -861,12 +861,10 @@ private[internals] class Renderer(compilationUnit: CompilationUnit) { self =>
     block(
       line"sealed abstract class ${name.name}(_value: String, _name: String, _intValue: Int, _hints: $Hints_) extends $Enumeration_.Value"
     )(
-      line"override type EnumType = $name.type",
       line"override val value: String = _value",
       line"override val name: String = _name",
       line"override val intValue: Int = _intValue",
       line"override val hints: $Hints_ = _hints",
-      line"override val enumeration: EnumType = $name",
       line"@inline final def widen: $name = this"
     ),
     obj(name, ext = line"$Enumeration_[$name]", w = line"${shapeTag(name)}")(
@@ -889,6 +887,18 @@ private[internals] class Renderer(compilationUnit: CompilationUnit) { self =>
         values.map(_.name)
       ),
       line"implicit val schema: $Schema_[$name] = $enumeration_(values).withId(id).addHints(hints)"
+    ),
+    obj(
+      name.copy(name = s"${name.name}Values")
+    )(
+      values.map { e =>
+        val valueName = NameRef(e.name)
+
+        obj(valueName, ext = line"$EnumerationValue_[$name]")(
+          line"override val enumeration: $Enumeration_[$name] = $name",
+          line"override val value: $name = $name.$valueName"
+        )
+      }
     )
   )
 
