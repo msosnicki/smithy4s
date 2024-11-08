@@ -11,6 +11,7 @@ Thank you!
 * Adds utility types for working with endpoint handlers (see [#1612](https://github.com/disneystreaming/smithy4s/pull/1612))
 * Add a more informative error message for repeated namespaces (see [#1608](https://github.com/disneystreaming/smithy4s/pull/1608)).
 * Adds `com.disneystreaming.smithy4s:smithy4s-protocol` dependency to the generation of `smithy-build.json` in the `smithy4sUpdateLSPConfig` tasks of the codegen plugins (see [#1610](https://github.com/disneystreaming/smithy4s/pull/1610)).
+* Fix for the lenient union decoding [bug](https://github.com/disneystreaming/smithy4s/issues/1617) (see[#1620](https://github.com/disneystreaming/smithy4s/pull/1620)).
 
 # 0.18.25
 

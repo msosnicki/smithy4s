@@ -976,32 +976,6 @@ private[smithy4s] class SchemaVisitorJCodec(
 
   private type Writer[A] = A => JsonWriter => Unit
 
-  private def taggedUnion[U](
-      alternatives: Vector[Alt[U, _]]
-  )(dispatch: Alt.Dispatcher[U]): JCodec[U] =
-    new TaggedUnionJCodec[U](alternatives)(dispatch) {
-
-      def decodeValue(cursor: Cursor, in: JsonReader): U =
-        if (in.isNextToken('{')) {
-          if (in.isNextToken('}'))
-            in.decodeError("Expected a single key/value pair")
-          else {
-            in.rollbackToken()
-            val key = in.readKeyAsString()
-            cursor.push(key)
-            val handler = handlerMap.get(key)
-            if (handler eq null) in.discriminatorValueError(key)
-            val result = handler(cursor, in)
-            cursor.pop()
-            if (in.isNextToken('}')) result
-            else {
-              in.rollbackToken()
-              in.decodeError(s"Expected no other field after $key")
-            }
-          }
-        } else in.decodeError("Expected JSON object")
-    }
-
   private abstract class TaggedUnionJCodec[U](alternatives: Vector[Alt[U, _]])(
       dispatch: Alt.Dispatcher[U]
   ) extends JCodec[U] {
@@ -1054,6 +1028,32 @@ private[smithy4s] class SchemaVisitorJCodec(
       out.encodeError("Cannot use coproducts as keys")
 
   }
+
+  private def taggedUnion[U](
+      alternatives: Vector[Alt[U, _]]
+  )(dispatch: Alt.Dispatcher[U]): JCodec[U] =
+    new TaggedUnionJCodec[U](alternatives)(dispatch) {
+
+      def decodeValue(cursor: Cursor, in: JsonReader): U =
+        if (in.isNextToken('{')) {
+          if (in.isNextToken('}'))
+            in.decodeError("Expected a single key/value pair")
+          else {
+            in.rollbackToken()
+            val key = in.readKeyAsString()
+            cursor.push(key)
+            val handler = handlerMap.get(key)
+            if (handler eq null) in.discriminatorValueError(key)
+            val result = handler(cursor, in)
+            cursor.pop()
+            if (in.isNextToken('}')) result
+            else {
+              in.rollbackToken()
+              in.decodeError(s"Expected no other field after $key")
+            }
+          }
+        } else in.decodeError("Expected JSON object")
+    }
 
   private def lenientTaggedUnion[U](
       alternatives: Vector[Alt[U, _]]
