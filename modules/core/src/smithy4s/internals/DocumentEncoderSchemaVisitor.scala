@@ -104,10 +104,10 @@ class DocumentEncoderSchemaVisitor(
         case HTTP_DATE => ts => DString(ts.format(HTTP_DATE))
         case EPOCH_SECONDS =>
           ts =>
-            val epochSecondsWithNanos =
-              BigDecimal(ts.epochSecond) + (BigDecimal(ts.nano) * BigDecimal(10)
-                .pow(-9))
-            DNumber(epochSecondsWithNanos)
+            val bd = (BigDecimal(ts.epochSecond) + (BigDecimal(
+              ts.nano
+            ) * BigDecimal(10).pow(-9))).underlying.stripTrailingZeros
+            DNumber(bd)
       }
     case PDocument => from(identity)
     case PFloat    => from(float => DNumber(BigDecimal(float.toDouble)))

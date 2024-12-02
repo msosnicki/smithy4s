@@ -607,6 +607,25 @@ class DocumentSpec() extends FunSuite {
     )
   }
 
+  test(
+    "Document encoder - timestamp epoch seconds uses correct BigDecimal scale"
+  ) {
+    def check(ts: Timestamp, expectedScale: Int) = {
+      val result = Document.Encoder
+        .fromSchema(TimestampOperationInput.schema)
+        .encode(TimestampOperationInput(ts, ts, ts))
+      inside(result) { case Document.DObject(fields) =>
+        inside(fields.get("epochSeconds")) {
+          case Some(Document.DNumber(bigDecimal)) =>
+            expect.same(expectedScale, bigDecimal.scale)
+        }
+      }
+    }
+    check(Timestamp(1L, 0), 0)
+    check(Timestamp(1L, 500 * 1000 * 1000), 1)
+    check(Timestamp(1L, 123 * 1000 * 1000), 3)
+  }
+
   test("Document decoder - timestamp defaults") {
     val doc = Document.obj()
     val result = Document.Decoder
@@ -897,6 +916,14 @@ class DocumentSpec() extends FunSuite {
       .encode(in)
 
     assertEquals(doc, expected)
+  }
+
+  private def inside[A, B](
+      a: A
+  )(assertPF: PartialFunction[A, Unit])(implicit loc: munit.Location) = {
+    assertPF.lift
+      .apply(a)
+      .getOrElse(Assertions.fail("Value did not match the expected pattern"))
   }
 
 }
