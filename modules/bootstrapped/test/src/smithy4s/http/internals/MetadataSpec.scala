@@ -75,7 +75,24 @@ class MetadataSpec() extends FunSuite {
       .left
       .map(_.getMessage())
     expect.same(encoded, expectedEncoding)
-    expect(result == Right(finished))
+    expect.same(result, Right(finished))
+  }
+
+  def checkQueryRoundTripError[A](
+      initial: A,
+      expectedEncoding: Metadata,
+      errorMessage: String
+  )(implicit
+      s: Schema[A],
+      loc: Location
+  ): Unit = {
+    val encoded = Metadata.encode(initial)
+    val result = Metadata
+      .decode[A](encoded)
+      .left
+      .map(_.getMessage())
+    expect.same(encoded, expectedEncoding)
+    expect.same(result, Left(errorMessage))
   }
 
   def checkRoundTripDefault[A](expectedDecoded: A)(implicit
@@ -121,6 +138,14 @@ class MetadataSpec() extends FunSuite {
       Queries(str = Some("hello"), slm = Some(Map("str" -> "hello")))
     val expected = Metadata(query = Map("str" -> List("hello")))
     checkQueryRoundTrip(queries, expected, finished)
+  }
+
+  test("Double NaN query parameter") {
+    val queries = Queries(dbl = Some(Double.NaN))
+    val expected = Metadata(query = Map("dbl" -> List("NaN")))
+    val errorMessage =
+      "Field dbl, found in Query parameter dbl, failed constraint checks with message: Numeric values must not be NaN or pos/neg infinity. Found NaN"
+    checkQueryRoundTripError(queries, expected, errorMessage)
   }
 
   test("String query parameter with default") {
