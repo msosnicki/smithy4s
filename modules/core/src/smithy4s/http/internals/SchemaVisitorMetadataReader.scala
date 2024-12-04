@@ -57,7 +57,7 @@ private[http] class SchemaVisitorMetadataReader(
     tag match {
       case Primitive.PDouble =>
         val decode: MetaDecode[Double] =
-          primitivePrivate(shapeId, hints, tag, desc)
+          primitiveHandler(shapeId, hints, tag, desc)
         decode.map(d =>
           if (!allowNaNAndInfiniteValues && (d.isNaN || d.isInfinite))
             throw MetadataError.ImpossibleDecoding(
@@ -67,7 +67,7 @@ private[http] class SchemaVisitorMetadataReader(
         )
       case Primitive.PFloat =>
         val decode: MetaDecode[Float] =
-          primitivePrivate(shapeId, hints, tag, desc)
+          primitiveHandler(shapeId, hints, tag, desc)
         decode.map(f =>
           if (!allowNaNAndInfiniteValues && (f.isNaN || f.isInfinite))
             throw MetadataError.ImpossibleDecoding(
@@ -75,11 +75,11 @@ private[http] class SchemaVisitorMetadataReader(
             )
           else f
         )
-      case _ => primitivePrivate(shapeId, hints, tag, desc)
+      case _ => primitiveHandler(shapeId, hints, tag, desc)
     }
   }
 
-  private def primitivePrivate[P](
+  private def primitiveHandler[P](
       shapeId: ShapeId,
       hints: Hints,
       tag: Primitive[P],
