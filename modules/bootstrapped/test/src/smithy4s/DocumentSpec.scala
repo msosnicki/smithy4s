@@ -381,7 +381,8 @@ class DocumentSpec() extends FunSuite {
     val in = Double.NaN
     val error = Try(Document.encode(in)).failed.get
     val expectedMessage =
-      if (weaver.Platform.isJS) "For input string: \"NaN\""
+      if (weaver.Platform.isJS || weaver.Platform.isNative)
+        "For input string: \"NaN\""
       else
         "Character N is neither a decimal digit number, decimal point, nor \"e\" notation exponential mark."
 
