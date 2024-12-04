@@ -81,14 +81,18 @@ class MetadataSpec() extends FunSuite {
   def checkQueryRoundTripError[A](
       initial: A,
       expectedEncoding: Metadata,
-      errorMessage: String
+      errorMessage: String,
+      allowNaN: Boolean
   )(implicit
       s: Schema[A],
       loc: Location
   ): Unit = {
     val encoded = Metadata.encode(initial)
-    val result = Metadata
-      .decode[A](encoded)
+    val decoder =
+      if (allowNaN) Metadata.AwsDecoder.fromSchema(s)
+      else Metadata.Decoder.fromSchema(s)
+    val result = decoder
+      .decode(encoded)
       .left
       .map(_.getMessage())
     expect.same(encoded, expectedEncoding)
@@ -140,12 +144,25 @@ class MetadataSpec() extends FunSuite {
     checkQueryRoundTrip(queries, expected, finished)
   }
 
-  test("Double NaN query parameter") {
+  // In this test the Metadata Decoder will allow NaN by creating a `Double.NaN` value.
+  // The Range RefinementProvider will reject this since `NaN` is not a valid `BigDecimal`
+  // which it uses
+  test("Double NaN query parameter - allow NaN in decoder") {
     val queries = Queries(dbl = Some(Double.NaN))
     val expected = Metadata(query = Map("dbl" -> List("NaN")))
     val errorMessage =
       "Field dbl, found in Query parameter dbl, failed constraint checks with message: Numeric values must not be NaN or pos/neg infinity. Found NaN"
-    checkQueryRoundTripError(queries, expected, errorMessage)
+    checkQueryRoundTripError(queries, expected, errorMessage, allowNaN = true)
+  }
+
+  // This test is where the Metadata Decoder will reject NaN itself
+  // As such the RefinementProvider for Range will not be called in this test
+  test("Double NaN query parameter - disallow NaN in decoder") {
+    val queries = Queries(dbl = Some(Double.NaN))
+    val expected = Metadata(query = Map("dbl" -> List("NaN")))
+    val errorMessage =
+      "NaN or pos/neg infinity are not allowed for inputs of type Double"
+    checkQueryRoundTripError(queries, expected, errorMessage, allowNaN = false)
   }
 
   test("String query parameter with default") {
