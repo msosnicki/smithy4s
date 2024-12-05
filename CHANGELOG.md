@@ -5,6 +5,10 @@ When adding entries, please treat them as if they could end up in a release any 
 
 Thank you!
 
+# 0.18.27
+
+* Fix for how `NaN` is handled for `Float` and `Double` inside of the `MetadataDecoder` and `Range` constraint `RefinementProvider`
+
 # 0.18.26
 
 * Optimises the conversion of empty smithy4s.Blob to fs2.Stream, to avoid performance degradation in Ember (see [#1609](https://github.com/disneystreaming/smithy4s/pull/1609))
