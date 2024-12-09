@@ -23,6 +23,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString => _, _}
 import munit.FunSuite
 import smithy.api.Default
 import smithy.api.JsonName
+import smithy.api.TimestampFormat
 import smithy4s.codecs.PayloadError
 import smithy4s.codecs.PayloadPath
 import smithy4s.example.CheckedOrUnchecked
@@ -174,6 +175,18 @@ class SchemaVisitorJCodecTests() extends FunSuite {
     }
   }
 
+  case class Timestamps(epochSeconds: Timestamp)
+
+  object Timestamps {
+    implicit val schema: Schema[Timestamps] = {
+      struct(
+        timestamp
+          .required[Timestamps]("epochSeconds", _.epochSeconds)
+          .addHints(TimestampFormat.EPOCH_SECONDS.widen)
+      )(Timestamps.apply)
+    }
+  }
+
   test(
     "Compiling a codec for a recursive type should not blow up the stack"
   ) {
@@ -183,6 +196,18 @@ class SchemaVisitorJCodecTests() extends FunSuite {
     val roundTripped = readFromString[IntList](json)
     expect.same(result, json)
     expect.same(roundTripped, foo)
+  }
+
+  test("Timestamps are encoded without trailing zeros") {
+    def nanosCheck(nanos: Int, expectedSecondsString: String) = {
+      val timestamps = Timestamps(Timestamp(1970, 1, 1, 10, 11, 12, nanos))
+      val result = writeToString(timestamps)
+      expect.same(s"""{"epochSeconds":$expectedSecondsString}""", result)
+    }
+    nanosCheck(123, "36672.000000123")
+    nanosCheck(1230, "36672.00000123")
+    nanosCheck(123000000, "36672.123")
+    nanosCheck(0, "36672")
   }
 
   test("Optional encode from present value") {
