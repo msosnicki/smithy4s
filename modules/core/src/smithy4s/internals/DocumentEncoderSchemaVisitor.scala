@@ -105,11 +105,16 @@ class DocumentEncoderSchemaVisitor(
         case EPOCH_SECONDS =>
           ts =>
             DNumber(
-              BigDecimal(ts.epochSecond) + BigDecimal(
-                ts.nano * 1 / 1000000000.0
-              )
-                .underlying()
-                .stripTrailingZeros()
+              BigDecimal({
+                val es = java.math.BigDecimal.valueOf(ts.epochSecond)
+                if (ts.nano == 0) es
+                else
+                  es.add(
+                    java.math.BigDecimal
+                      .valueOf(ts.nano.toLong, 9)
+                      .stripTrailingZeros
+                  )
+              })
             )
       }
     case PDocument => from(identity)
