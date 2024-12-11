@@ -617,7 +617,7 @@ class DocumentSpec() extends FunSuite {
       inside(result) { case Document.DObject(fields) =>
         inside(fields.get("epochSeconds")) {
           case Some(Document.DNumber(bigDecimal)) =>
-            expect.same(expectedScale, bigDecimal.scale)
+            expect.same(bigDecimal.scale, expectedScale)
         }
       }
     }

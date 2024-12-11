@@ -395,15 +395,7 @@ private[smithy4s] class SchemaVisitorJCodec(
 
       def encodeValue(x: Timestamp, out: JsonWriter): Unit = {
         out.writeVal(
-          BigDecimal(
-            java.math.BigDecimal
-              .valueOf(x.epochSecond)
-              .add(
-                java.math.BigDecimal
-                  .valueOf(x.nano.toLong, 9)
-                  .stripTrailingZeros
-              )
-          )
+          BigDecimal(x.epochSecond) + BigDecimal(x.nano * 1/ 1000000000.0).underlying().stripTrailingZeros()
         )
       }
 
