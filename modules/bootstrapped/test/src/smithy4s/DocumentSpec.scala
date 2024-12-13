@@ -626,6 +626,19 @@ class DocumentSpec() extends FunSuite {
     check(Timestamp(1L, 123 * 1000 * 1000), 3)
   }
 
+  test("Document decoder - timestamps before linux epoch") {
+    val doc =
+      Document.obj("epochSeconds" -> Document.fromBigDecimal(-0.999999877))
+    val result = Document.Decoder
+      .fromSchema(TimestampOperationInput.schema)
+      .decode(doc)
+    expect.same(
+      result,
+      Right(TimestampOperationInput(epochSeconds = Timestamp(-1, 123)))
+    )
+
+  }
+
   test("Document decoder - timestamp defaults") {
     val doc = Document.obj()
     val result = Document.Decoder
