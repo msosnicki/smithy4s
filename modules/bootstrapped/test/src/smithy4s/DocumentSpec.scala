@@ -25,6 +25,7 @@ import munit._
 import smithy4s.example.DefaultNullsOperationOutput
 import alloy.Untagged
 import smithy4s.example.TimestampOperationInput
+import scala.util.Try
 
 class DocumentSpec() extends FunSuite {
 
@@ -368,6 +369,27 @@ class DocumentSpec() extends FunSuite {
 
     expect.same(document, expectedDocument)
     expect.same(roundTripped, Right(mapTest))
+  }
+
+  test("encoding NaN") {
+    // The Document type cannot hold a `NaN` value since it uses BigDecimal to hold numeric values
+    // this test exists to show this. For the same reason, a test on decoding from `NaN` is not necessary
+    // or possible.
+    implicit val schema: Schema[Double] =
+      double.validated(smithy.api.Range(None, Some(BigDecimal(3))))
+
+    val in = Double.NaN
+    val error = Try(Document.encode(in)).failed.get
+    val expectedMessage =
+      if (weaver.Platform.isJS || weaver.Platform.isNative)
+        "For input string: \"NaN\""
+      else
+        "Character N is neither a decimal digit number, decimal point, nor \"e\" notation exponential mark."
+
+    expect.same(
+      error.getMessage,
+      expectedMessage
+    )
   }
 
   test(

@@ -46,6 +46,17 @@ class JsonSpec() extends FunSuite {
     assertEquals(roundTripped, Right(foo))
   }
 
+  test("Json read - NaN") {
+    implicit val schemaDouble: Schema[Double] =
+      double.validated(smithy.api.Range(None, Some(BigDecimal(3))))
+    val expectedJson = """"NaN""""
+    val roundTripped = Json.read[Double](Blob(expectedJson))
+
+    assert(
+      roundTripped.left.toOption.get.message.startsWith("illegal number")
+    )
+  }
+
   test("Json document read/write") {
     val foo =
       Document.obj("a" -> Document.fromInt(1), "b" -> Document.fromInt(2))
