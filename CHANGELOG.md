@@ -5,6 +5,10 @@ When adding entries, please treat them as if they could end up in a release any 
 
 Thank you!
 
+# 0.18.28
+
+* Better support for timestamps before Linux Epoch and trimming the Timestamp nanosecond part (see [#1623](https://github.com/disneystreaming/smithy4s/pull/1623))
+
 # 0.18.27
 
 * Fix for how `NaN` is handled for `Float` and `Double` inside of the `MetadataDecoder` and `Range` constraint `RefinementProvider`

@@ -71,4 +71,21 @@ class JsonSpec() extends FunSuite {
     assertEquals(roundTripped, Right(foo))
   }
 
+  test("Json document respects BigDecimal resolution on read/write") {
+    val foo =
+      Document.obj(
+        "a" -> Document.fromBigDecimal(BigDecimal(1)),
+        "b" -> Document.fromBigDecimal(BigDecimal(1.1))
+      )
+    val result = Json.writeDocumentAsPrettyString(foo)
+    val roundTripped = Json.readDocument(Blob(result))
+    val expectedJson = """|{
+                          |  "a": 1,
+                          |  "b": 1.1
+                          |}""".stripMargin
+
+    assertEquals(result, expectedJson)
+    assertEquals(roundTripped, Right(foo))
+  }
+
 }
