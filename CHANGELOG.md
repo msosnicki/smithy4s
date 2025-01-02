@@ -8,6 +8,7 @@ Thank you!
 # 0.18.28
 
 * Better support for timestamps before Linux Epoch and trimming the Timestamp nanosecond part (see [#1623](https://github.com/disneystreaming/smithy4s/pull/1623))
+* Adds a special for AWS request signing when S3 is being used (see see [#1605](https://github.com/disneystreaming/smithy4s/pull/1605))
 
 # 0.18.27
 
