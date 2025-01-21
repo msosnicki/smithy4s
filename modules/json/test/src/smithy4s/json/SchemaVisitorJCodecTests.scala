@@ -43,6 +43,7 @@ import scala.collection.immutable.ListMap
 import scala.util.Try
 import smithy4s.json.internals.JsoniterCodecCompilerImpl
 import smithy4s.schema.Schema
+import smithy4s.schema.Field
 
 class SchemaVisitorJCodecTests() extends FunSuite {
 
@@ -834,6 +835,195 @@ class SchemaVisitorJCodecTests() extends FunSuite {
     val json = """{}"""
     val result = writeToString[String]("default")
     expect.same(result, json)
+  }
+
+  test("combinations of required, nullable, and null default") {
+    testFieldCombination(true, true, true)
+    testFieldCombination(false, true, true)
+    testFieldCombination(false, false, true)
+    testFieldCombination(false, false, false)
+    testFieldCombination(true, false, false)
+    testFieldCombination(true, true, false)
+    testFieldCombination(true, false, true)
+    testFieldCombination(false, true, false)
+  }
+
+  private def testFieldCombination(
+      required: Boolean,
+      nullable: Boolean,
+      nullDefault: Boolean
+  )(implicit loc: munit.Location): Unit = {
+    val toDecode = "{}"
+    val hints =
+      if (nullDefault) Hints(smithy.api.Default(Document.DNull))
+      else Hints.empty
+    // scalafmt: { maxColumn: 120 }
+    if (!required && nullDefault) nonRequiredWithDefault(nullable, hints, toDecode)
+    else if (required && nullable) requiredNullable(nullDefault, hints, toDecode)
+    else if (!required && nullable && !nullDefault) nonRequiredNullable(hints, toDecode)
+    else if (required) requiredNonNullable(nullDefault, hints, toDecode)
+    else if (!nullDefault) nonRequiredNonNullable(hints, toDecode)
+  }
+
+  def nonRequiredWithDefault(
+      nullable: Boolean,
+      hints: Hints,
+      toDecode: String
+  )(implicit loc: munit.Location): Unit = {
+    if (nullable) {
+      case class Foo(f: Nullable[String])
+      implicit val schema: Schema[Foo] =
+        Schema.struct(Schema.string.nullable.field[Foo]("f", _.f).addHints(hints))(
+          Foo.apply
+        )
+      val result = util.Try(readFromString[Foo](toDecode))
+      // required = false, nullable = true, nullDefault = true
+      expect.same(result.get, Foo(Nullable.Null))
+    } else {
+      case class Foo(f: String)
+      implicit val schema: Schema[Foo] =
+        Schema.struct(Schema.string.field[Foo]("f", _.f).addHints(hints))(
+          Foo.apply
+        )
+      val result = util.Try(readFromString[Foo](toDecode))
+      // required = false, nullable = false, nullDefault = true
+      expect.same(result.get, Foo(""))
+    }
+  }
+
+  def requiredNullable(
+      nullDefault: Boolean,
+      hints: Hints,
+      toDecode: String
+  )(implicit loc: munit.Location): Unit = {
+    case class Foo(f: Nullable[String])
+    implicit val schema: Schema[Foo] =
+      Schema.struct(
+        Schema.string.nullable.required[Foo]("f", _.f).addHints(hints)
+      )(
+        Foo.apply
+      )
+    val result = util.Try(readFromString[Foo](toDecode))
+    if (nullDefault)
+      // required = true, nullable = true, nullDefault = true
+      expect.same(result.get, Foo(Nullable.Null))
+    else
+      // required = true, nullable = true, nullDefault = false
+      expect(result.isFailure)
+  }
+
+  def nonRequiredNullable(
+      hints: Hints,
+      toDecode: String
+  )(implicit loc: munit.Location): Unit = {
+    case class Foo(f: Option[Nullable[String]])
+    implicit val schema =
+      Schema.struct(
+        Schema.string.nullable.optional[Foo]("f", _.f).addHints(hints)
+      )(
+        Foo.apply
+      )
+    val result = readFromString[Foo](toDecode)
+    // required = false, nullable = true, nullDefault = false
+    expect.same(result, Foo(None))
+  }
+
+  def requiredNonNullable(
+      nullDefault: Boolean,
+      hints: Hints,
+      toDecode: String
+  )(implicit loc: munit.Location): Unit = {
+    case class Foo(f: String)
+    implicit val schema: Schema[Foo] =
+      Schema.struct(Schema.string.required[Foo]("f", _.f).addHints(hints))(
+        Foo.apply
+      )
+    val result = util.Try(readFromString[Foo](toDecode))
+    // required = true, nullable = false, nullDefault = true
+    if (nullDefault) expect.same(result.get, Foo(""))
+    // required = true, nullable = false, nullDefault = false
+    else expect(result.isFailure)
+  }
+
+  def nonRequiredNonNullable(
+      hints: Hints,
+      toDecode: String
+  )(implicit loc: munit.Location): Unit = {
+    case class Foo(f: Option[String])
+    implicit val schema =
+      Schema.struct(Schema.string.optional[Foo]("f", _.f).addHints(hints))(
+        Foo.apply
+      )
+    val result = readFromString[Foo](toDecode)
+    // required = false, nullable = false, nullDefault = false
+    expect.same(result, Foo(None))
+  }
+
+  test(
+    "Required refined field with null default"
+  ) {
+    case class Test()
+    object Test extends ShapeTag.Companion[Test] {
+      def id: ShapeId = ShapeId("test", "Test")
+      def schema: Schema[Test] = Schema.constant(Test())
+    }
+    case class Foo(str: String)
+    case class Bar(foo: Foo)
+    implicit val provider: RefinementProvider[Test, String, Foo] =
+      Refinement.drivenBy[Test](str => Right(Foo.apply(str)), _.str)
+    val fieldSchema: Field[Bar, Foo] =
+      Schema.string
+        .refined[Foo](
+          Test()
+        )
+        .required[Bar]("foo", _.foo)
+        .addHints(smithy.api.Default(Document.DNull))
+    implicit val schema: Schema[Bar] =
+      Schema.struct[Bar](fieldSchema)(Bar.apply)
+
+    expect.same(
+      readFromString[Bar]("{\"foo\":\"test\"}"),
+      Bar(Foo("test"))
+    )
+    expect.same(
+      readFromString[Bar]("{}"),
+      // Empty string here because null default is implied to be empty string
+      // for a non-nullable string field
+      Bar(Foo(""))
+    )
+  }
+
+  test(
+    "Nullable required refined field with null default"
+  ) {
+    case class Test()
+    object Test extends ShapeTag.Companion[Test] {
+      def id: ShapeId = ShapeId("test", "Test")
+      def schema: Schema[Test] = Schema.constant(Test())
+    }
+    case class Foo(str: String)
+    case class Bar(foo: Nullable[Foo])
+    implicit val provider: RefinementProvider[Test, String, Foo] =
+      Refinement.drivenBy[Test](str => Right(Foo.apply(str)), _.str)
+    val fieldSchema: Field[Bar, Nullable[Foo]] =
+      Schema.string
+        .refined[Foo](
+          Test()
+        )
+        .nullable
+        .required[Bar]("foo", _.foo)
+        .addHints(smithy.api.Default(Document.DNull))
+    implicit val schema: Schema[Bar] =
+      Schema.struct[Bar](fieldSchema)(Bar.apply)
+
+    expect.same(
+      readFromString[Bar]("{\"foo\":\"test\"}"),
+      Bar(Nullable.value(Foo("test")))
+    )
+    expect.same(
+      readFromString[Bar]("{}"),
+      Bar(Nullable.Null)
+    )
   }
 
   case class Patchable(a: Option[Nullable[Int]])
