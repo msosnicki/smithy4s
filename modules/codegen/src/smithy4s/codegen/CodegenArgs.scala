@@ -59,7 +59,7 @@ object FileType {
   val values = List(Scala, Openapi, Resource)
 }
 
-final class NamespacePattern(pattern: String) {
+final case class NamespacePattern private (pattern: String) {
   import NamespacePattern._
   private val regexPattern =
     new Regex(

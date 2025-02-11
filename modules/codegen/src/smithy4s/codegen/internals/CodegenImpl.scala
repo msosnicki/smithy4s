@@ -75,20 +75,19 @@ private[codegen] object CodegenImpl { self =>
           .map(_.config)
           .getOrElse(new OpenApiConfig())
 
+      val allNamespaces =
+        model.getShapeIds().asScala.map(_.getNamespace()).toSet
       val isAllowed: String => Boolean = str =>
         args.allowedNS.map(_.exists(_.matches(str))).getOrElse(true)
       val notExcluded: String => Boolean = str =>
         !args.excludedNS.getOrElse(Set.empty).exists(_.matches(str))
-      val openApiNamespaces = model
-        .getShapeIds()
-        .asScala
-        .map(_.getNamespace())
-        .toSet
-        .filter(namespace => isAllowed(namespace) && notExcluded(namespace))
+      val openApiNamespaces = allNamespaces.filter(namespace =>
+        isAllowed(namespace) && notExcluded(namespace)
+      )
       alloy.openapi
         .convertWithConfig(
           model,
-          Some(openApiNamespaces),
+          Some(openApiNamespaces).filter(_ != allNamespaces),
           openApiConfig,
           classloader
         )
