@@ -75,8 +75,23 @@ private[codegen] object CodegenImpl { self =>
           .map(_.config)
           .getOrElse(new OpenApiConfig())
 
+      val isAllowed: String => Boolean = str =>
+        args.allowedNS.map(_.exists(_.matches(str))).getOrElse(true)
+      val notExcluded: String => Boolean = str =>
+        !args.excludedNS.getOrElse(Set.empty).exists(_.matches(str))
+      val openApiNamespaces = model
+        .getShapeIds()
+        .asScala
+        .map(_.getNamespace())
+        .toSet
+        .filter(namespace => isAllowed(namespace) && notExcluded(namespace))
       alloy.openapi
-        .convertWithConfig(model, args.allowedNS, openApiConfig, classloader)
+        .convertWithConfig(
+          model,
+          Some(openApiNamespaces),
+          openApiConfig,
+          classloader
+        )
         .map { case OpenApiConversionResult(_, serviceId, outputString) =>
           val name = serviceId.getNamespace() + "." + serviceId.getName()
           val openapiFile = (args.resourceOutput / (name + ".json"))
@@ -126,8 +141,8 @@ private[codegen] object CodegenImpl { self =>
 
   private[internals] def generate(
       model: Model,
-      allowedNS: Option[Set[String]],
-      excludedNS: Option[Set[String]]
+      allowedNS: Option[Set[NamespacePattern]],
+      excludedNS: Option[Set[NamespacePattern]]
   ): List[(os.RelPath, Renderer.Result)] = {
     val namespaces = model
       .shapes()
@@ -182,15 +197,18 @@ private[codegen] object CodegenImpl { self =>
     val filteredNamespaces = allowedNS match {
       case Some(allowedNamespaces) =>
         namespaces
-          .filter(allowedNamespaces)
-          .filterNot(excluded)
+          .filter(namespace =>
+            allowedNamespaces.exists(_.matches(namespace)) && !excluded.exists(
+              _.matches(namespace)
+            )
+          )
           .filterNot(alreadyGenerated)
       case None =>
         namespaces
           .filterNot(_.startsWith("aws."))
           .filterNot(_.startsWith("smithy."))
           .filterNot(ns => reserved.exists(ns.startsWith))
-          .filterNot(excluded)
+          .filterNot(namespace => excluded.exists(_.matches(namespace)))
           .filterNot(alreadyGenerated)
     }
 
