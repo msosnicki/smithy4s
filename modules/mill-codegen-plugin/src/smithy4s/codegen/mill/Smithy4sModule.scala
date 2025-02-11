@@ -34,6 +34,7 @@ import smithy4s.codegen.{Codegen => Smithy4s}
 
 import scala.util.Success
 import scala.util.Try
+import smithy4s.codegen.NamespacePattern
 
 trait Smithy4sModule extends ScalaModule {
 
@@ -221,8 +222,10 @@ trait Smithy4sModule extends ScalaModule {
       resourceOutput = resourcesOutput,
       skip = skipSet,
       discoverModels = false,
-      allowedNS = smithy4sAllowedNamespaces(),
-      excludedNS = smithy4sExcludedNamespaces(),
+      allowedNS =
+        smithy4sAllowedNamespaces().map(_.map(NamespacePattern.fromString)),
+      excludedNS =
+        smithy4sExcludedNamespaces().map(_.map(NamespacePattern.fromString)),
       repositories = smithy4sRepositories(),
       dependencies = List.empty,
       transformers = smithy4sModelTransformers(),
