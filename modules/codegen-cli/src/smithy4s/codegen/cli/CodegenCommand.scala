@@ -29,7 +29,7 @@ import com.monovore.decline.Argument
 
 object CodegenCommand {
 
-  private implicit val namespacePatternArg: Argument[NamespacePattern] = 
+  private implicit val namespacePatternArg: Argument[NamespacePattern] =
     Argument.readString.map(NamespacePattern.fromString)
 
   val outputOpt =
