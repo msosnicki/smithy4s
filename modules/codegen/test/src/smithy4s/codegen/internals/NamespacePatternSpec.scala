@@ -1,4 +1,4 @@
-package smithy4s.codegen
+package smithy4s.codegen.internals
 
 class NamespacePatternSpec extends munit.FunSuite {
 

@@ -18,7 +18,6 @@ package smithy4s.codegen
 
 import cats.data.ValidatedNel
 import cats.syntax.all._
-import scala.util.matching.Regex
 
 final case class CodegenArgs(
     specs: List[os.Path],
@@ -26,8 +25,8 @@ final case class CodegenArgs(
     resourceOutput: os.Path,
     skip: Set[FileType],
     discoverModels: Boolean,
-    allowedNS: Option[Set[NamespacePattern]],
-    excludedNS: Option[Set[NamespacePattern]],
+    allowedNS: Option[Set[String]],
+    excludedNS: Option[Set[String]],
     repositories: List[String],
     dependencies: List[String],
     transformers: List[String],
@@ -57,29 +56,4 @@ object FileType {
   case object Proto extends FileType("proto")
 
   val values = List(Scala, Openapi, Resource)
-}
-
-final case class NamespacePattern private (pattern: String) {
-  import NamespacePattern._
-  private val regexPattern =
-    new Regex(
-      pattern
-        .split("\\.")
-        .map {
-          case "*"                      => "[a-z0-9_\\.]*"
-          case wildcardSegment(segment) => s"$segment([a-z0-9_\\.])*"
-          case validSegment(segment)    => segment
-          case _                        => "(?!).*"
-        }
-        .mkString("^", "\\.", "$")
-    )
-
-  def matches(namespace: String): Boolean =
-    regexPattern.pattern.matcher(namespace).matches()
-}
-
-object NamespacePattern {
-  private val wildcardSegment = "([a-z][a-z0-9_]*)\\*".r
-  private val validSegment = "([a-z][a-z0-9_]*)".r
-  def fromString(str: String): NamespacePattern = new NamespacePattern(str)
 }

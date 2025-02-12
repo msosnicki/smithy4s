@@ -24,13 +24,8 @@ import smithy4s.codegen.CodegenArgs
 import smithy4s.codegen.FileType
 
 import Options._
-import smithy4s.codegen.NamespacePattern
-import com.monovore.decline.Argument
 
 object CodegenCommand {
-
-  private implicit val namespacePatternArg: Argument[NamespacePattern] =
-    Argument.readString.map(NamespacePattern.fromString)
 
   val outputOpt =
     Opts
@@ -80,18 +75,18 @@ object CodegenCommand {
       )
       .orFalse
 
-  val allowedNSOpt: Opts[Option[Set[NamespacePattern]]] =
+  val allowedNSOpt: Opts[Option[Set[String]]] =
     Opts
-      .option[List[NamespacePattern]](
+      .option[List[String]](
         "allowed-ns",
         "Comma-delimited list of namespaces that should not be processed. If unset, all namespaces are processed (except stdlib ones)"
       )
       .map(_.toSet)
       .orNone
 
-  val excludedNSOpt: Opts[Option[Set[NamespacePattern]]] =
+  val excludedNSOpt: Opts[Option[Set[String]]] =
     Opts
-      .option[List[NamespacePattern]](
+      .option[List[String]](
         "excluded-ns",
         "Comma-delimited list of namespaces that should not be processed. If unset, all namespaces are processed (except stdlib ones)"
       )

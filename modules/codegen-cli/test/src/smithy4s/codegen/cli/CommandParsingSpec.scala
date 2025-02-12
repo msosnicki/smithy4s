@@ -21,7 +21,6 @@ import smithy4s.codegen.FileType
 import weaver._
 
 import Defaults.defaultDependencies
-import smithy4s.codegen.NamespacePattern
 
 object CommandParsingSpec extends FunSuite {
 
@@ -90,8 +89,7 @@ object CommandParsingSpec extends FunSuite {
               resourceOutput = os.pwd / "target" / "openapi",
               skip = Set(FileType.Openapi, FileType.Scala),
               discoverModels = false,
-              allowedNS =
-                Some(Set("name1", "name2").map(NamespacePattern.fromString)),
+              allowedNS = Some(Set("name1", "name2")),
               excludedNS = None,
               repositories = List("repo1", "repo2"),
               dependencies = defaultDependencies ++ List("dep1", "dep2"),

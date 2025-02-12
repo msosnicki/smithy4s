@@ -27,6 +27,7 @@ import software.amazon.smithy.model.shapes.ModelSerializer
 import software.amazon.smithy.model.transform.ModelTransformer
 import software.amazon.smithy.openapi.OpenApiConfig
 import software.amazon.smithy.model.SourceLocation
+import scala.util.matching.Regex
 
 import scala.jdk.CollectionConverters._
 
@@ -75,12 +76,15 @@ private[codegen] object CodegenImpl { self =>
           .map(_.config)
           .getOrElse(new OpenApiConfig())
 
+      val allowedNS = args.allowedNS.map(_.map(NamespacePattern.fromString))
+      val excludedNS = args.excludedNS.map(_.map(NamespacePattern.fromString))
+
       val allNamespaces =
         model.getShapeIds().asScala.map(_.getNamespace()).toSet
       val isAllowed: String => Boolean = str =>
-        args.allowedNS.map(_.exists(_.matches(str))).getOrElse(true)
+        allowedNS.map(_.exists(_.matches(str))).getOrElse(true)
       val notExcluded: String => Boolean = str =>
-        !args.excludedNS.getOrElse(Set.empty).exists(_.matches(str))
+        excludedNS.getOrElse(Set.empty).exists(_.matches(str))
       val openApiNamespaces = allNamespaces.filter(namespace =>
         isAllowed(namespace) && notExcluded(namespace)
       )
@@ -140,8 +144,8 @@ private[codegen] object CodegenImpl { self =>
 
   private[internals] def generate(
       model: Model,
-      allowedNS: Option[Set[NamespacePattern]],
-      excludedNS: Option[Set[NamespacePattern]]
+      allowedNS: Option[Set[String]],
+      excludedNS: Option[Set[String]]
   ): List[(os.RelPath, Renderer.Result)] = {
     val namespaces = model
       .shapes()
@@ -191,9 +195,11 @@ private[codegen] object CodegenImpl { self =>
       allGeneratedSet
     }
 
-    val excluded = excludedNS.getOrElse(Set.empty)
+    val excluded =
+      excludedNS.getOrElse(Set.empty).map(NamespacePattern.fromString)
+    val allowed = allowedNS.map(_.map(NamespacePattern.fromString))
 
-    val filteredNamespaces = allowedNS match {
+    val filteredNamespaces = allowed match {
       case Some(allowedNamespaces) =>
         namespaces
           .filter(namespace =>
@@ -269,4 +275,29 @@ object RepeatedNamespaceException {
     s"""Multiple artifact manifests cannot contain generated code for the same namespace:
        | ${duplicateMessages.mkString("\n")}""".stripMargin
   }
+}
+
+private[internals] final case class NamespacePattern private (pattern: String) {
+  import NamespacePattern._
+  private val regexPattern =
+    new Regex(
+      pattern
+        .split("\\.")
+        .map {
+          case "*"                      => "[a-z0-9_\\.]*"
+          case wildcardSegment(segment) => s"$segment([a-z0-9_\\.])*"
+          case validSegment(segment)    => segment
+          case _                        => "(?!).*"
+        }
+        .mkString("^", "\\.", "$")
+    )
+
+  def matches(namespace: String): Boolean =
+    regexPattern.pattern.matcher(namespace).matches()
+}
+
+private[internals] object NamespacePattern {
+  val wildcardSegment = "([a-z][a-z0-9_]*)\\*".r
+  val validSegment = "([a-z][a-z0-9_]*)".r
+  def fromString(str: String): NamespacePattern = new NamespacePattern(str)
 }
