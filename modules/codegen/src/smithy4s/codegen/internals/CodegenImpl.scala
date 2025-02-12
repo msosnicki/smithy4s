@@ -84,7 +84,7 @@ private[codegen] object CodegenImpl { self =>
       val isAllowed: String => Boolean = str =>
         allowedNS.map(_.exists(_.matches(str))).getOrElse(true)
       val notExcluded: String => Boolean = str =>
-        excludedNS.getOrElse(Set.empty).exists(_.matches(str))
+        !excludedNS.getOrElse(Set.empty).exists(_.matches(str))
       val openApiNamespaces = allNamespaces.filter(namespace =>
         isAllowed(namespace) && notExcluded(namespace)
       )
