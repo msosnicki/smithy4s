@@ -8,8 +8,11 @@ class NamespacePatternSpec extends munit.FunSuite {
       "a.b.*" -> "a.b.c",
       "a.b.*" -> "a.b.c.d",
       "a.b*" -> "a.b",
+      "a.b.*" -> "a.b.C",
       "a.b*" -> "a.bc",
-      "a.b*" -> "a.b.c"
+      "a.b*" -> "a.bC",
+      "a.b*" -> "a.b.c",
+      "a.b*" -> "a.b.C"
     ).foreach { case (pattern, namespace) =>
       assert(
         NamespacePattern.fromString(pattern).matches(namespace),
@@ -25,14 +28,12 @@ class NamespacePatternSpec extends munit.FunSuite {
       "a.b" -> "acb",
       "a.b.*" -> "a.b",
       "a.b.*" -> "a.B",
-      "a.b.*" -> "a.b.C",
       "a.b.*" -> "b.a",
       "a.b.*" -> "a.bb.c",
       "a.b.*" -> "acb.d",
       "a.b*" -> "acb",
       "a.b*" -> "b.a.c",
-      "a.b*" -> "a.bC",
-      "a.b*" -> "a.b.C"
+      "a.b.c-d" -> "a.b.c-d"
     ).foreach { case (pattern, namespace) =>
       assert(
         !NamespacePattern.fromString(pattern).matches(namespace),

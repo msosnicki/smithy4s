@@ -277,6 +277,12 @@ object RepeatedNamespaceException {
   }
 }
 
+/**
+  * This matcher supports following syntax: 
+  * - a.b.c - exact match, will match only 'a.b.c'
+  * - a.b.* - will match a.b followed with some segments.
+  * - a.b* - like above, but will also match a.b
+  */
 private[internals] final case class NamespacePattern private (pattern: String) {
   import NamespacePattern._
   private val regexPattern =
@@ -284,10 +290,11 @@ private[internals] final case class NamespacePattern private (pattern: String) {
       pattern
         .split("\\.")
         .map {
-          case "*"                      => "[a-z0-9_\\.]*"
-          case wildcardSegment(segment) => s"$segment([a-z0-9_\\.])*"
+          case "*"                      => "[\\w\\.]*"
+          case wildcardSegment(segment) => s"$segment([\\w\\.])*"
           case validSegment(segment)    => segment
-          case _                        => "(?!).*"
+          // negative lookahead without a value - the pattern will always fail because the pattern is incorrect
+          case _ => "(?!)"
         }
         .mkString("^", "\\.", "$")
     )
@@ -297,7 +304,7 @@ private[internals] final case class NamespacePattern private (pattern: String) {
 }
 
 private[internals] object NamespacePattern {
-  val wildcardSegment = "([a-z][a-z0-9_]*)\\*".r
-  val validSegment = "([a-z][a-z0-9_]*)".r
+  val wildcardSegment = "([a-zA-Z][\\w]*)\\*".r
+  val validSegment = "([a-zA-Z][\\w]*)".r
   def fromString(str: String): NamespacePattern = new NamespacePattern(str)
 }
