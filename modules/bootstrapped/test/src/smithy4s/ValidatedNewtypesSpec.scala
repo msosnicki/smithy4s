@@ -17,7 +17,11 @@
 package smithy4s
 
 import smithy4s.schema.Schema.string
+import smithy4s.schema.Schema.list
+import smithy4s.example.ValidatedList
+import smithy4s.example.ValidatedMap
 import munit.Assertions
+import cats.data.Validated.Valid
 
 class ValidatedNewtypesSpec() extends munit.FunSuite {
   val id1 = "id1"
@@ -34,6 +38,21 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
       implicitly[ShapeTag[DeviceId]]
     )
     expect.same(AccountId.unapply(AccountId.unsafeApply(id1)), Some(id1))
+  }
+
+  test("Validated newtype list".only) {
+    expect(ValidatedList(List("foo")).isRight)
+    expect(ValidatedList(List("foo", "bar")).isLeft)
+  }
+
+  test("Validated newtype member list".only) {
+    expect(ValidatedMemberList(List("f")).isRight)
+    expect(ValidatedMemberList(List("fo")).isLeft)
+  }
+
+  test("Validated newtype map") {
+    expect(ValidatedMap(Map("foo" -> 1)).isRight)
+    expect(ValidatedMap(Map("foo" -> 1, "bar" -> 2)).isLeft)
   }
 
   test("Newtypes have well defined unapply") {
@@ -104,6 +123,47 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
     @inline def apply(a: String): Either[String, AccountId] =
       validator.validate(a)
 
+  }
+
+  type ValidatedList = ValidatedList.Type
+
+  object ValidatedList extends ValidatedNewtype[List[String]] {
+    val id: ShapeId = ShapeId("smithy4s.example", "ValidatedList")
+    val hints: Hints = Hints.empty
+    val underlyingSchema: Schema[List[String]] = list(string)
+      .withId(id)
+      .addHints(hints)
+      .validated(smithy.api.Length(min = None, max = Some(1L)))
+    val validator: Validator[List[String], ValidatedList] = Validator
+      .of[List[String], ValidatedList](
+        Bijection[List[String], ValidatedList](
+          _.asInstanceOf[ValidatedList],
+          value(_)
+        )
+      )
+      .validating(smithy.api.Length(min = None, max = Some(1L)))
+    implicit val schema: Schema[ValidatedList] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(a: List[String]): Either[String, ValidatedList] =
+      validator.validate(a)
+  }
+
+  type ValidatedMemberList = ValidatedMemberList.Type
+
+  object ValidatedMemberList extends ValidatedNewtype[List[String]] {
+    val id: ShapeId = ShapeId("smithy4s.example", "ValidatedMemberList")
+    val hints: Hints = Hints.empty
+    val underlyingSchema: Schema[List[String]] = list(
+      string
+        .addMemberHints()
+        .validated(smithy.api.Length(min = None, max = Some(1L)))
+    ).withId(id).addHints(hints)
+    val validator: Validator[List[String], ValidatedMemberList] =
+      Validator.of[List[String], ValidatedMemberList](Bijection[List[String], ValidatedMemberList](_.asInstanceOf[ValidatedMemberList], value(_)))
+    implicit val schema: Schema[ValidatedMemberList] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(a: List[String]): Either[String, ValidatedMemberList] =
+      validator.validate(a)
   }
 
 }

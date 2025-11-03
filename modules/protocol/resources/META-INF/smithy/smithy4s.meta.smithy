@@ -196,7 +196,11 @@ list scalaImports {
         :is(
             number[trait|range],
             string[trait|pattern],
-            string[trait|length]
+            string[trait|length],
+            list[trait|length],
+            map[trait|length],
+            list:test(> member[trait|length]),
+            map:test(> [trait|length])
         )"""
     conflicts: [unwrap]
 )

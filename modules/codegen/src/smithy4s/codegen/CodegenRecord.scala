@@ -46,6 +46,7 @@ private[codegen] object CodegenRecord {
     val obj = node.expectObjectNode()
     val arrayNode = obj.expectArrayMember("namespaces")
     val validatedNewtypes =
+      // where is that written?
       obj.getBooleanMember("validatedNewtypes").toScala.map(_.getValue())
     val namespaces = arrayNode
       .getElements()

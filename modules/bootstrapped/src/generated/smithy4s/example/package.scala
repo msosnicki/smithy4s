@@ -127,6 +127,8 @@ package object example {
   type UnwrappedFancyList = smithy4s.example.UnwrappedFancyList.Type
   type Username = smithy4s.example.Username.Type
   type UuidTrait = smithy4s.example.UuidTrait.Type
+  type ValidatedList = smithy4s.example.ValidatedList.Type
+  type ValidatedMap = smithy4s.example.ValidatedMap.Type
   type ValidatedString = smithy4s.example.ValidatedString.Type
 
 }

@@ -13,6 +13,19 @@ string ValidatedString
 @pattern("[a-zA-Z0-9]+")
 string NonValidatedString
 
+@length(max: 1)
+@validateNewtype
+list ValidatedList {
+    member: String
+}
+
+@length(max: 1)
+@validateNewtype
+map ValidatedMap {
+    key: String
+    value: Integer
+}
+
 structure ValidatedFoo {
     name: ValidatedString = "abc"
 }

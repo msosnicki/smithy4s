@@ -728,10 +728,15 @@ private[codegen] class SmithyToIR(
             }
           }
           .map { tpe =>
-            val externalOrBase =
-              getExternalOrBase(x, tpe)
-            val isUnwrapped = !isExternal(externalOrBase) || isUnwrappedShape(x)
-            Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
+            val externalOrBase = getExternalOrBase(x, tpe)
+            val shouldValidate = x.hasTrait(classOf[ValidateNewtypeTrait])
+            if (shouldValidate)
+              Type.ValidatedAlias(x.namespace, x.name, externalOrBase)
+            else {
+              val isUnwrapped =
+                !isExternal(externalOrBase) || isUnwrappedShape(x)
+              Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
+            }
           }
       }
 
@@ -769,8 +774,13 @@ private[codegen] class SmithyToIR(
       )).map { tpe =>
         val externalOrBase =
           getExternalOrBase(x, tpe)
-        val isUnwrapped = !isExternal(externalOrBase) || isUnwrappedShape(x)
-        Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
+        val shouldValidate = x.hasTrait(classOf[ValidateNewtypeTrait])
+        if (shouldValidate)
+          Type.ValidatedAlias(x.namespace, x.name, externalOrBase)
+        else {
+          val isUnwrapped = !isExternal(externalOrBase) || isUnwrappedShape(x)
+          Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
+        }
       }
 
       def byteShape(x: ByteShape): Option[Type] =
