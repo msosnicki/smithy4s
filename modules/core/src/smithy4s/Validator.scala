@@ -38,47 +38,101 @@ object Validator {
         ev: RefinementProvider.Simple[C, A]
     ): Validator[A, B] =
       new ValidatorImpl[A, B](List(ev.make(constraint)), bijection)
-  
-    def validatingElement[C, Elem](constrait: C)(implicit ev: A =:= List[Elem], refEv: RefinementProvider.Simple[C, Elem]): Validator[A, B] = {
-      val evBijection: Bijection[A,  List[Elem]] = bijectionFromEv(ev)
-      println(refEv)
-      val z = evBijection.swap.imapTarget(bijection)
-      val resu: Validator[List[Elem], B] = list(mainValidator = None, elementRefinements = List(refEv.make(constrait)), bijection = z)
-      mapped[List[Elem], B, A](resu)(evBijection.from)
-    }
 
+    def validatingElement[C, Elem](constrait: C)(implicit
+        ev: A =:= List[Elem],
+        refEv: RefinementProvider.Simple[C, Elem]
+    ): Validator[A, B] = {
+      val evBijection: Bijection[A, List[Elem]] = bijectionFromEv(ev)
+      new Bijected(
+        new ListValidator(
+          mainValidator = None,
+          elementRefinements = List(refEv.make(constrait)),
+          bijection = evBijection.swap.imapTarget(bijection)
+        ),
+        evBijection.swap
+      )
+    }
   }
 
-  private def list[Elem, B](
-    mainValidator: Option[Validator[List[Elem], B]], 
-    elementRefinements: List[Refinement.Aux[_, Elem, Elem]], 
-    bijection: Bijection[List[Elem], B]
-  ): Validator[List[Elem], B] = new ListValidator(mainValidator, elementRefinements, bijection)
+  // private def list[Elem, B](
+  //     mainValidator: Option[Validator[List[Elem], B]],
+  //     elementRefinements: List[Refinement.Aux[_, Elem, Elem]],
+  //     bijection: Bijection[List[Elem], B]
+  // ): Validator[List[Elem], B] =
+  //   new ListValidator(mainValidator, elementRefinements, bijection)
 
-  private def mapped[A, B, A0](source: Validator[A, B])(contramap: A => A0): Validator[A0, B] = 
-    new Mapped(source, contramap)
+  // private def mapped[A, B, A0](source: Validator[A, B])(
+  //     contramap: A => A0
+  // ): Validator[A0, B] =
+  //   new Mapped(source, contramap)
 
-  private def bijectionFromEv[A, B](ev: A =:= B): Bijection[A, B] = 
+  private def bijectionFromEv[A, B](ev: A =:= B): Bijection[A, B] =
     Bijection(ev.apply, ev.flip.apply)
 
-  private class Mapped[A, B, A0](source: Validator[A, B], contramap: A => A0) extends Validator[A0, B] {
+  private class Bijected[A, B, A0](
+      source: Validator[A, B],
+      biject: Bijection[A, A0]
+  ) extends Validator[A0, B] {
 
-    override def validate(value: A0): Either[String,B] = ???
+    override def validate(value: A0): Either[String, B] = 
+      source.validate(biject.from(value))
 
-    override def toSchema(a: Schema[A0]): Schema[B] = ???
+    override def toSchema(a: Schema[A0]): Schema[B] = 
+      source.toSchema(a.biject(biject.swap))
 
-    override def alsoValidating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A0]): Validator[A0,B] = ???
-
+    override def alsoValidating[C](constraint: C)(implicit
+        ev: RefinementProvider.Simple[C, A0] 
+    ): Validator[A0, B] = {
+      implicit val ev0 = ev.imapFull(biject.swap, biject.swap)
+      new Bijected(source.alsoValidating(constraint), biject)
+    }
   }
 
-  private class ListValidator[Elem, B](mainValidator: Option[Validator[List[Elem], B]], elementRefinements: List[Refinement.Aux[_, Elem, Elem]], bijection: Bijection[List[Elem], B]) extends Validator[List[Elem], B] {
+  private class ListValidator[Elem, B](
+      mainValidator: Option[Validator[List[Elem], B]],
+      elementRefinements: List[Refinement.Aux[_, Elem, Elem]],
+      bijection: Bijection[List[Elem], B]
+  ) extends Validator[List[Elem], B] {
 
-    override def validate(value: List[Elem]): Either[String,B] = ???
+    override def validate(value: List[Elem]): Either[String, B] = {
+      def right[A](value: A): Either[String, A] = Right(value)
+      def validateList(
+          ref: Refinement.Aux[_, Elem, Elem]
+      ): Either[String, Unit] =
+        value.foldLeft(right(())) { case (acc, elem) =>
+          acc.flatMap(_ => ref(elem)).map(_ => ())
+        }
+      val elementsValidated = elementRefinements.foldLeft(right(value)) {
+        case (valueOrError, ref) =>
+          valueOrError.flatMap(_ => validateList(ref)).map(_ => value)
+      }
+      mainValidator
+        .map(_.validate(value))
+        .getOrElse(right(bijection.apply(Nil)))
+        .flatMap(_ => elementsValidated.map(_ => bijection.apply(value)))
+    }
 
-    override def toSchema(a: Schema[List[Elem]]): Schema[B] = ???
+    override def toSchema(a: Schema[List[Elem]]): Schema[B] = {
+      val main = mainValidator.map(_.toSchema(a)).getOrElse(a.biject(bijection))
+      elementRefinements.foldLeft(main) {
+        // TODO: attach refinement to member
+        case (acc, _) => acc
+      }
+    }
 
-    override def alsoValidating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,List[Elem]]): Validator[List[Elem],B] = ???
-
+    override def alsoValidating[C](constraint: C)(implicit
+        ev: RefinementProvider.Simple[C, List[Elem]]
+    ): Validator[List[Elem], B] =
+      new ListValidator(
+        mainValidator = mainValidator
+          .map(_.alsoValidating(constraint))
+          .orElse(
+            Some(Validator.of(bijection).validating(constraint))
+          ),
+        elementRefinements = elementRefinements,
+        bijection
+      )
 
   }
 

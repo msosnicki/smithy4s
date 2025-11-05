@@ -158,11 +158,11 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
         .addMemberHints()
         .validated(smithy.api.Length(min = None, max = Some(1L)))
     ).withId(id).addHints(hints)
-    val memberValidator: Validator[String, String] = 
-      Validator.of(Bijection.identity[String]).validating(smithy.api.Length(min = None, max = Some(1L)))
     val validator: Validator[List[String], ValidatedMemberList] =
       Validator.of[List[String], ValidatedMemberList](Bijection[List[String], ValidatedMemberList](_.asInstanceOf[ValidatedMemberList], value(_)))
-      .validating()
+      .validatingElement(
+        smithy.api.Length(min = None, max = Some(1L))
+      )
     implicit val schema: Schema[ValidatedMemberList] =
       validator.toSchema(underlyingSchema)
     @inline def apply(a: List[String]): Either[String, ValidatedMemberList] =
