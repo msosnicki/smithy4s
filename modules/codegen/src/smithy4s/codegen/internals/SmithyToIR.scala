@@ -608,7 +608,7 @@ private[codegen] class SmithyToIR(
           }
       }
 
-      private def getExternalOrBase(shape: Shape, base: Type): Type =
+      private def getExternalOrBase(shape: Shape, base: Type): Type = {
         getExternalTypeInfo(shape)
           .map {
             case (trt, ExternalTypeInfo.RefinementInfo(refined)) =>
@@ -636,6 +636,7 @@ private[codegen] class SmithyToIR(
               )
           }
           .getOrElse(base)
+      }
 
       private def isExternal(tpe: Type): Boolean = tpe match {
         case _: Type.ExternalType => true
@@ -646,7 +647,7 @@ private[codegen] class SmithyToIR(
         shape.hasTrait(classOf[smithy4s.meta.UnwrapTrait])
       }
 
-      def primitive(
+      private def primitive(
           shape: Shape,
           primitiveId: String,
           primitive: Primitive
@@ -706,8 +707,24 @@ private[codegen] class SmithyToIR(
         }
       }
 
+      private def debugSet(shape: Shape, name: Set[String])(msg: String) = {
+        if (name.contains(shape.getId().name)) {
+          println(msg)
+        }
+      }
+
+      private def debug(shape: Shape, name: String)(msg: String) = {
+        debugSet(shape, Set(name))(msg)
+        if (name.contains(shape.getId().name)) {
+          println(msg)
+        }
+      }
+
       def listShape(x: ListShape): Option[Type] = {
-        x.getMember()
+        debug(x, "ValidatedMemberList")("================================================================")
+        debug(x, "ValidatedMemberList")(s"MEMBER NAME: ${x.getMember().getId().getName()}")
+        debug(x, "ValidatedMemberList")(s"MAIN NAME: ${x.getId().getName()}")
+        val reuslt = x.getMember()
           .accept(this)
           .map { tpe =>
             if (x.hasTrait(classOf[SparseTrait])) {
@@ -738,6 +755,9 @@ private[codegen] class SmithyToIR(
               Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
             }
           }
+        debugSet(x, Set("ValidatedMemberList", "ValidatedList"))(s"RESULT $reuslt")
+        debug(x, "ValidatedMemberList")("================================================================")
+        reuslt
       }
 
       @nowarn("msg=class SetShape in package shapes is deprecated")
@@ -856,9 +876,11 @@ private[codegen] class SmithyToIR(
           builder
             .addTraits(x.getAllTraits().asScala.map(_._2).asJavaCollection)
 
-          builder
+          val elem = builder
             .build()
-            .accept(this)
+
+          debug(x, "ValidatedMemberList")(s"VISITED MEMBER ${elem.toString}")
+          elem.accept(this)
         }
 
       def timestampShape(x: TimestampShape): Option[Type] =

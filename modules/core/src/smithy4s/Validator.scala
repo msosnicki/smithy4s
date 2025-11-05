@@ -38,6 +38,48 @@ object Validator {
         ev: RefinementProvider.Simple[C, A]
     ): Validator[A, B] =
       new ValidatorImpl[A, B](List(ev.make(constraint)), bijection)
+  
+    def validatingElement[C, Elem](constrait: C)(implicit ev: A =:= List[Elem], refEv: RefinementProvider.Simple[C, Elem]): Validator[A, B] = {
+      val evBijection: Bijection[A,  List[Elem]] = bijectionFromEv(ev)
+      println(refEv)
+      val z = evBijection.swap.imapTarget(bijection)
+      val resu: Validator[List[Elem], B] = list(mainValidator = None, elementRefinements = List(refEv.make(constrait)), bijection = z)
+      mapped[List[Elem], B, A](resu)(evBijection.from)
+    }
+
+  }
+
+  private def list[Elem, B](
+    mainValidator: Option[Validator[List[Elem], B]], 
+    elementRefinements: List[Refinement.Aux[_, Elem, Elem]], 
+    bijection: Bijection[List[Elem], B]
+  ): Validator[List[Elem], B] = new ListValidator(mainValidator, elementRefinements, bijection)
+
+  private def mapped[A, B, A0](source: Validator[A, B])(contramap: A => A0): Validator[A0, B] = 
+    new Mapped(source, contramap)
+
+  private def bijectionFromEv[A, B](ev: A =:= B): Bijection[A, B] = 
+    Bijection(ev.apply, ev.flip.apply)
+
+  private class Mapped[A, B, A0](source: Validator[A, B], contramap: A => A0) extends Validator[A0, B] {
+
+    override def validate(value: A0): Either[String,B] = ???
+
+    override def toSchema(a: Schema[A0]): Schema[B] = ???
+
+    override def alsoValidating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A0]): Validator[A0,B] = ???
+
+  }
+
+  private class ListValidator[Elem, B](mainValidator: Option[Validator[List[Elem], B]], elementRefinements: List[Refinement.Aux[_, Elem, Elem]], bijection: Bijection[List[Elem], B]) extends Validator[List[Elem], B] {
+
+    override def validate(value: List[Elem]): Either[String,B] = ???
+
+    override def toSchema(a: Schema[List[Elem]]): Schema[B] = ???
+
+    override def alsoValidating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,List[Elem]]): Validator[List[Elem],B] = ???
+
+
   }
 
   private class ValidatorImpl[A, B](

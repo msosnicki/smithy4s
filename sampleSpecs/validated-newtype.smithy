@@ -19,6 +19,17 @@ list ValidatedList {
     member: String
 }
 
+list OtherList {
+    @length(max: 1)
+    member: String
+}
+
+// @validateNewtype
+// list ValidatedMemberList {
+//     @length(max: 1)
+//     member: String
+// }
+
 @length(max: 1)
 @validateNewtype
 map ValidatedMap {
