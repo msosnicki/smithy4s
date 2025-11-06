@@ -25,19 +25,27 @@ sealed trait Validator[A, B] {
       ev: RefinementProvider.Simple[C, A]
   ): Validator[A, B]
 
+  def biject[B0](implicit bijection: Bijection[B, B0]): Validator[A, B0]
+
   // def alsoValidatingElement[C, E](constraint: C)(implicit ev: A =:= List[E], rev: RefinementProvider.Simple[C, E]): Validator[A, B]
 }
 
 object Validator {
 
+  // todo: for collection?
+  sealed trait ForList[E] extends Validator[List[E], List[E]] {
+    def validatingElement[C](constraint: C)(implicit
+        ev: RefinementProvider.Simple[C, E]
+    ): Validator[List[E], List[E]]
+  }
+
+  // TODO: add deprecation
   def of[A, B](bijection: Bijection[A, B]): ValidatorBuilder[A, B] =
     new ValidatorBuilder[A, B](bijection)
 
-  def ofBijection[A, B](bijection: Bijection[A, B]): Validator[A, B] = new BijectedValidator(
-    new DirectValidator[A](Nil),
-    Bijection.identity,
-    bijection
-  )
+  def simple[A]: Validator[A, A] = new DirectValidator[A](Vector.empty)
+
+  def list[E]: Validator.ForList[E] = new ListValidator(None, Vector.empty)
 
   final class ValidatorBuilder[A, B] private[smithy4s] (
       bijection: Bijection[A, B]
@@ -46,35 +54,26 @@ object Validator {
         ev: RefinementProvider.Simple[C, A]
     ): Validator[A, B] =
       new BijectedValidator(
-        new DirectValidator[A](List(ev.make(constraint))),
+        new DirectValidator[A](Vector(ev.make(constraint))),
         Bijection.identity,
         bijection
       )
-
-    def validatingElement[C, Elem](constrait: C)(implicit
-        ev: A =:= List[Elem],
-        refEv: RefinementProvider.Simple[C, Elem]
-    ): Validator[A, B] = {
-      val evBijection: Bijection[List[Elem], A] = bijectionFromEv(ev.flip)
-      new BijectedValidator(
-        new ListValidator(
-          mainValidator = None,
-          elementRefinements = List(refEv.make(constrait))
-        ),
-        evBijection,
-        evBijection.imapTarget(bijection)
-      )
-    }
   }
-
-  private def bijectionFromEv[A, B](ev: A =:= B): Bijection[A, B] =
-    Bijection(ev.apply, ev.flip.apply)
 
   private class BijectedValidator[A, B, A0, B0](
       source: Validator[A, B],
       bijectSource: Bijection[A, A0],
       bijectTarget: Bijection[B, B0]
   ) extends Validator[A0, B0] {
+
+    override def biject[B1](implicit
+        bijection: Bijection[B0, B1]
+    ): Validator[A0, B1] =
+      new BijectedValidator(
+        source,
+        bijectSource,
+        bijectTarget.imapTarget(bijection)
+      )
 
     override def validate(value: A0): Either[String, B0] =
       source.validate(bijectSource.from(value)).map(bijectTarget.to)
@@ -97,15 +96,28 @@ object Validator {
 
   private class ListValidator[Elem](
       mainValidator: Option[Validator[List[Elem], List[Elem]]],
-      elementRefinements: List[Refinement.Aux[_, Elem, Elem]]
-  ) extends Validator[List[Elem], List[Elem]] {
+      elementRefinements: Vector[Refinement.Aux[_, Elem, Elem]]
+  ) extends Validator.ForList[Elem] {
+
+    override def biject[B0](implicit
+        bijection: Bijection[List[Elem], B0]
+    ): Validator[List[Elem], B0] =
+      new BijectedValidator(this, Bijection.identity, bijection)
+
+    override def validatingElement[C](constraint: C)(implicit
+        ev: RefinementProvider.Simple[C, Elem]
+    ): Validator[List[Elem], List[Elem]] =
+      new ListValidator(
+        mainValidator,
+        elementRefinements :+ ev.make(constraint)
+      )
 
     override def validate(value: List[Elem]): Either[String, List[Elem]] = {
       def right[A](value: A): Either[String, A] = Right(value)
       def validateList(
           ref: Refinement.Aux[_, Elem, Elem]
       ): Either[String, Unit] =
-        //todo: rewrite so it does not iterate the whole list
+        // todo: rewrite so it does not iterate the whole list
         value.foldLeft(right(())) { case (acc, elem) =>
           acc.flatMap(_ => ref(elem)).map(_ => ())
         }
@@ -133,15 +145,20 @@ object Validator {
       new ListValidator(
         mainValidator = mainValidator
           .map(_.alsoValidating(constraint))
-          .orElse(Some(new DirectValidator(List(ev.make(constraint))))),
+          .orElse(Some(new DirectValidator(Vector(ev.make(constraint))))),
         elementRefinements = elementRefinements
       )
 
   }
 
   private class DirectValidator[A](
-      refinements: List[Refinement.Aux[_, A, A]]
+      refinements: Vector[Refinement.Aux[_, A, A]]
   ) extends Validator[A, A] {
+
+    override def biject[B0](implicit
+        bijection: Bijection[A, B0]
+    ): Validator[A, B0] =
+      new BijectedValidator(this, Bijection.identity, bijection)
 
     override def validate(value: A): Either[String, A] = {
       refinements
