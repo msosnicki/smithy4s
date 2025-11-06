@@ -20,8 +20,11 @@ import smithy4s.schema.Schema.string
 import smithy4s.schema.Schema.list
 import smithy4s.example.ValidatedList
 import smithy4s.example.ValidatedMap
+import smithy4s.refined.NonEmptyList
 import munit.Assertions
 import cats.data.Validated.Valid
+import smithy.api.Length
+import smithy4s.example.NonEmptyListFormat
 
 class ValidatedNewtypesSpec() extends munit.FunSuite {
   val id1 = "id1"
@@ -159,14 +162,55 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
         .validated(smithy.api.Length(min = None, max = Some(1L)))
     ).withId(id).addHints(hints)
     val validator: Validator[List[String], ValidatedMemberList] =
-      Validator.of[List[String], ValidatedMemberList](Bijection[List[String], ValidatedMemberList](_.asInstanceOf[ValidatedMemberList], value(_)))
-      .validatingElement(
-        smithy.api.Length(min = None, max = Some(1L))
-      )
+      Validator
+        .list[String]
+        .validatingElement(
+          smithy.api.Length(min = None, max = Some(1L))
+        )
+        .biject(
+          Bijection[List[String], ValidatedMemberList](
+            _.asInstanceOf[ValidatedMemberList],
+            value(_)
+          )
+        )
     implicit val schema: Schema[ValidatedMemberList] =
       validator.toSchema(underlyingSchema)
     @inline def apply(a: List[String]): Either[String, ValidatedMemberList] =
       validator.validate(a)
+  }
+
+  type ValidatedMemberRefinedList = ValidatedMemberRefinedList.Type
+
+  object ValidatedMemberRefinedList
+      extends ValidatedNewtype[NonEmptyList[String]] {
+    val id: ShapeId = ShapeId("smithy4s.example", "ValidatedMemberRefinedList")
+    val hints: Hints = Hints(
+      smithy4s.example.NonEmptyListFormat()
+    ).lazily
+    val underlyingSchema: Schema[NonEmptyList[String]] = list(
+      string
+        .addMemberHints()
+        .validated(smithy.api.Length(min = None, max = Some(1L)))
+    ).refined[NonEmptyList[String]](smithy4s.example.NonEmptyListFormat())
+      .withId(id)
+      .addHints(hints)
+    val validator
+        : Validator[NonEmptyList[String], ValidatedMemberRefinedList] = {
+      
+      Validator.list[String].validatingElement(Length(max = Some(1L)))
+      // Validator.of[NonEmptyList[String], ValidatedMemberRefinedList](
+      //   Bijection[NonEmptyList[String], ValidatedMemberRefinedList](
+      //     _.asInstanceOf[ValidatedMemberRefinedList],
+      //     value(_)
+      //   )
+      // )
+      ???
+    }
+    implicit val schema: Schema[ValidatedMemberRefinedList] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(
+        a: NonEmptyList[String]
+    ): Either[String, ValidatedMemberRefinedList] = validator.validate(a)
   }
 
 }

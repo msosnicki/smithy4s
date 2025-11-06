@@ -721,10 +721,15 @@ private[codegen] class SmithyToIR(
       }
 
       def listShape(x: ListShape): Option[Type] = {
-        debug(x, "ValidatedMemberList")("================================================================")
-        debug(x, "ValidatedMemberList")(s"MEMBER NAME: ${x.getMember().getId().getName()}")
+        debug(x, "ValidatedMemberList")(
+          "================================================================"
+        )
+        debug(x, "ValidatedMemberList")(
+          s"MEMBER NAME: ${x.getMember().getId().getName()}"
+        )
         debug(x, "ValidatedMemberList")(s"MAIN NAME: ${x.getId().getName()}")
-        val reuslt = x.getMember()
+        val reuslt = x
+          .getMember()
           .accept(this)
           .map { tpe =>
             if (x.hasTrait(classOf[SparseTrait])) {
@@ -755,8 +760,12 @@ private[codegen] class SmithyToIR(
               Type.Alias(x.namespace, x.name, externalOrBase, isUnwrapped)
             }
           }
-        debugSet(x, Set("ValidatedMemberList", "ValidatedList"))(s"RESULT $reuslt")
-        debug(x, "ValidatedMemberList")("================================================================")
+        debugSet(x, Set("ValidatedMemberList", "ValidatedList"))(
+          s"RESULT $reuslt"
+        )
+        debug(x, "ValidatedMemberList")(
+          "================================================================"
+        )
         reuslt
       }
 

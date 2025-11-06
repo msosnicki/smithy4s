@@ -30,6 +30,13 @@ list OtherList {
 //     member: String
 // }
 
+// @nonEmptyListFormat
+// @validateNewtype
+// list ValidatedMemberRefinedList {
+//     @length(max: 1)
+//     member: String
+// }
+
 @length(max: 1)
 @validateNewtype
 map ValidatedMap {

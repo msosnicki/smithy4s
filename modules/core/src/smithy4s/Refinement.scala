@@ -33,6 +33,8 @@ trait Refinement[A, B] { self =>
   def apply(a: A): Either[String, B]
   def from(b: B): A
 
+  def asSurjection: Surjection[A, B] = Surjection(apply, from)
+
   /**
     * Short circuits validation. This should only be used as last-resort
     * when it is impossible to implement schema compilers otherwise, such as ones
