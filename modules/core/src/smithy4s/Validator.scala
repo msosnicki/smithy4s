@@ -33,14 +33,20 @@ object Validator {
   def of[A, B](bijection: Bijection[A, B]): ValidatorBuilder[A, B] =
     new ValidatorBuilder[A, B](bijection)
 
+  def ofBijection[A, B](bijection: Bijection[A, B]): Validator[A, B] = new BijectedValidator(
+    new DirectValidator[A](Nil),
+    Bijection.identity,
+    bijection
+  )
+
   final class ValidatorBuilder[A, B] private[smithy4s] (
       bijection: Bijection[A, B]
   ) {
     def validating[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, A]
     ): Validator[A, B] =
-      new Bijected(
-        new Direct[A](List(ev.make(constraint))),
+      new BijectedValidator(
+        new DirectValidator[A](List(ev.make(constraint))),
         Bijection.identity,
         bijection
       )
@@ -50,7 +56,7 @@ object Validator {
         refEv: RefinementProvider.Simple[C, Elem]
     ): Validator[A, B] = {
       val evBijection: Bijection[List[Elem], A] = bijectionFromEv(ev.flip)
-      new Bijected(
+      new BijectedValidator(
         new ListValidator(
           mainValidator = None,
           elementRefinements = List(refEv.make(constrait))
@@ -64,7 +70,7 @@ object Validator {
   private def bijectionFromEv[A, B](ev: A =:= B): Bijection[A, B] =
     Bijection(ev.apply, ev.flip.apply)
 
-  private class Bijected[A, B, A0, B0](
+  private class BijectedValidator[A, B, A0, B0](
       source: Validator[A, B],
       bijectSource: Bijection[A, A0],
       bijectTarget: Bijection[B, B0]
@@ -74,14 +80,14 @@ object Validator {
       source.validate(bijectSource.from(value)).map(bijectTarget.to)
 
     override def toSchema(a: Schema[A0]): Schema[B0] =
-      // todo: compose them here before calling biject
+      // todo: compose them here before calling biject so there is just one wrapper
       source.toSchema(a.biject(bijectSource.swap)).biject(bijectTarget)
 
     override def alsoValidating[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, A0]
     ): Validator[A0, B0] = {
       implicit val ev0 = ev.imapFull(bijectSource.swap, bijectSource.swap)
-      new Bijected(
+      new BijectedValidator(
         source.alsoValidating(constraint),
         bijectSource,
         bijectTarget
@@ -99,6 +105,7 @@ object Validator {
       def validateList(
           ref: Refinement.Aux[_, Elem, Elem]
       ): Either[String, Unit] =
+        //todo: rewrite so it does not iterate the whole list
         value.foldLeft(right(())) { case (acc, elem) =>
           acc.flatMap(_ => ref(elem)).map(_ => ())
         }
@@ -126,15 +133,14 @@ object Validator {
       new ListValidator(
         mainValidator = mainValidator
           .map(_.alsoValidating(constraint))
-          .orElse(Some(new Direct(List(ev.make(constraint))))),
+          .orElse(Some(new DirectValidator(List(ev.make(constraint))))),
         elementRefinements = elementRefinements
       )
 
   }
 
-  private class Direct[A](
+  private class DirectValidator[A](
       refinements: List[Refinement.Aux[_, A, A]]
-      // bijection: Bijection[A, B]
   ) extends Validator[A, A] {
 
     override def validate(value: A): Either[String, A] = {
@@ -148,7 +154,7 @@ object Validator {
     override def alsoValidating[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, A]
     ): Validator[A, A] =
-      new Direct[A](refinements :+ ev.make(constraint))
+      new DirectValidator[A](refinements :+ ev.make(constraint))
 
     override def toSchema(a: Schema[A]): Schema[A] = {
       refinements
