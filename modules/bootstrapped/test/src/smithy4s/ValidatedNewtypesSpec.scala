@@ -43,6 +43,11 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
     expect.same(AccountId.unapply(AccountId.unsafeApply(id1)), Some(id1))
   }
 
+  test("Validated name".only) {
+    expect(ValidatedName("Joe").isRight)
+    expect(ValidatedName("").isLeft)
+  }
+
   test("Validated newtype list".only) {
     expect(ValidatedList(List("foo")).isRight)
     expect(ValidatedList(List("foo", "bar")).isLeft)
@@ -128,6 +133,30 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
 
   }
 
+  type ValidatedName = ValidatedName.Type
+
+  object ValidatedName extends ValidatedNewtype[smithy4s.refined.Name] {
+    val id: ShapeId = ShapeId("smithy4s.example", "ValidatedName")
+    val hints: Hints = Hints(
+      smithy4s.example.NameFormat()
+    ).lazily
+    val underlyingSchema: Schema[smithy4s.refined.Name] = string
+      .refined[smithy4s.refined.Name](smithy4s.example.NameFormat())
+      .withId(id)
+      .addHints(hints)
+    val validator: Validator[smithy4s.refined.Name, ValidatedName] =
+      Validator.simple.refined(NameFormat).biject(
+        Bijection[smithy4s.refined.Name, ValidatedName](
+          _.asInstanceOf[ValidatedName],
+          value(_)
+        )
+      )
+    implicit val schema: Schema[ValidatedName] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(a: smithy4s.refined.Name): Either[String, ValidatedName] =
+      validator.validate(a)
+  }
+
   type ValidatedList = ValidatedList.Type
 
   object ValidatedList extends ValidatedNewtype[List[String]] {
@@ -196,7 +225,7 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
       .addHints(hints)
     val validator
         : Validator[NonEmptyList[String], ValidatedMemberRefinedList] = {
-      
+
       Validator.list[String].validatingElement(Length(max = Some(1L)))
       // Validator.of[NonEmptyList[String], ValidatedMemberRefinedList](
       //   Bijection[NonEmptyList[String], ValidatedMemberRefinedList](

@@ -16,7 +16,7 @@
 
 package smithy4s
 
-sealed trait Validator[A, B] {
+sealed trait Validator[A, B] { self =>
   def validate(value: A): Either[String, B]
 
   def toSchema(a: Schema[A]): Schema[B]
@@ -25,12 +25,14 @@ sealed trait Validator[A, B] {
       ev: RefinementProvider.Simple[C, A]
   ): Validator[A, B]
 
+  def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C, A, B0]): Validator[A, B0]
+
   // todo: deprecated
   def alsoValidating[C](constraint: C)(implicit
       ev: RefinementProvider.Simple[C, A]
   ): Validator[A, B] = validating(constraint)
 
-  def biject[B0](implicit bijection: Bijection[B, B0]): Validator[A, B0]
+  def biject[B0](implicit bijection: Bijection[B, B0]): Validator[A, B0] = new Validator.BijectedValidator(self, bijection)
 
 }
 
@@ -68,6 +70,9 @@ object Validator {
       bijectTarget: Bijection[B, B0]
   ) extends Validator[A, B0] {
 
+    override def validateRefined[B1, C](constraint: C)(implicit ev: RefinementProvider[C,A,B1]): Validator[A,B1] = 
+      ???
+
     override def biject[B1](implicit
         bijection: Bijection[B0, B1]
     ): Validator[A, B1] =
@@ -96,11 +101,6 @@ object Validator {
       elementRefinements: Vector[Refinement.Aux[_, Elem, Elem]]
   ) extends Validator.ForList[Elem] {
 
-    override def biject[B0](implicit
-        bijection: Bijection[List[Elem], B0]
-    ): Validator[List[Elem], B0] =
-      new BijectedValidator(this, bijection)
-
     override def validating[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, List[Elem]]
     ): Validator[List[Elem], List[Elem]] =
@@ -110,6 +110,9 @@ object Validator {
           .orElse(Some(new DirectValidator(Vector(ev.make(constraint))))),
         elementRefinements = elementRefinements
       )
+
+    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,List[Elem],B0]): Validator[List[Elem],B0] = 
+      new RefinedValidator(this, ev.make(constraint))
 
     override def validatingElement[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, Elem]
@@ -148,14 +151,28 @@ object Validator {
 
   }
 
+
+  //issues: refinements do not compose - the definition of refine on main trait is impossible to be met in RefinedValidator if it wraps Validator[A, B]
+  private class RefinedValidator[A, B](underlying: Validator[A, A], refinement: Refinement.Aux[_, A, B]) extends Validator[A, B] {
+
+    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
+      new RefinedValidator(underlying, ev.make(constraint))
+
+    override def validate(value: A): Either[String,B] = underlying.validate(value).flatMap(refinement.apply)
+
+    override def toSchema(a: Schema[A]): Schema[B] = underlying.toSchema(a).refined(refinement)
+
+    override def validating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A]): Validator[A,B] = new RefinedValidator(underlying.validating(constraint), refinement)
+
+      
+  }
+
   private class DirectValidator[A](
       refinements: Vector[Refinement.Aux[_, A, A]]
   ) extends Validator[A, A] {
 
-    override def biject[B0](implicit
-        bijection: Bijection[A, B0]
-    ): Validator[A, B0] =
-      new BijectedValidator(this, bijection)
+    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
+      new RefinedValidator(this, ev.make(constraint))
 
     override def validate(value: A): Either[String, A] = {
       refinements

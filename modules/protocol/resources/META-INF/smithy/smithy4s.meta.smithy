@@ -197,6 +197,7 @@ list scalaImports {
             number[trait|range],
             string[trait|pattern],
             string[trait|length],
+            :test(-[trait]-> [trait|smithy4s.meta#refinement]),
             list[trait|length],
             map[trait|length],
             list:test(> member[trait|length]),

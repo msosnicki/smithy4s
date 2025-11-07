@@ -13,6 +13,10 @@ string ValidatedString
 @pattern("[a-zA-Z0-9]+")
 string NonValidatedString
 
+// @nameFormat
+// @validateNewtype
+// string ValidatedName
+
 @length(max: 1)
 @validateNewtype
 list ValidatedList {
