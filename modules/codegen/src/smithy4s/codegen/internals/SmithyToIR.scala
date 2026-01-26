@@ -566,6 +566,19 @@ private[codegen] class SmithyToIR(
       )
       val smithyNamespace = "smithy.api"
 
+      private def debugSet(shape: Shape, name: Set[String])(msg: String) = {
+        if (name.contains(shape.getId().name)) {
+          println(msg)
+        }
+      }
+
+      private def debug(shape: Shape, name: String)(msg: String) = {
+        debugSet(shape, Set(name))(msg)
+        if (name.contains(shape.getId().name)) {
+          println(msg)
+        }
+      }
+
       private def isUnboxedPrimitive(shapeId: ShapeId): Boolean =
         shapeId.getNamespace() == smithyNamespace && primitiveAliases.contains(
           shapeId.getName()
@@ -707,19 +720,6 @@ private[codegen] class SmithyToIR(
         }
       }
 
-      private def debugSet(shape: Shape, name: Set[String])(msg: String) = {
-        if (name.contains(shape.getId().name)) {
-          println(msg)
-        }
-      }
-
-      private def debug(shape: Shape, name: String)(msg: String) = {
-        debugSet(shape, Set(name))(msg)
-        if (name.contains(shape.getId().name)) {
-          println(msg)
-        }
-      }
-
       def listShape(x: ListShape): Option[Type] = {
         debug(x, "ValidatedMemberList")(
           "================================================================"
@@ -740,6 +740,7 @@ private[codegen] class SmithyToIR(
             val _hints = hints(x)
             val memberHints = getHints(tpe, x.getMember)
             if (_hints.contains(Hint.UniqueItems)) {
+              //todo: validator needed so that all collection types are supported here
               Type.Collection(CollectionType.Set, tpe, memberHints)
             } else if (_hints.contains(Hint.SpecializedList.Vector)) {
               Type.Collection(CollectionType.Vector, tpe, memberHints)
@@ -785,7 +786,7 @@ private[codegen] class SmithyToIR(
               x.namespace,
               x.name,
               externalOrBase,
-              isUnwrapped
+              isUnwrappedCollectionType.IndexedSeq
             )
           }
       }

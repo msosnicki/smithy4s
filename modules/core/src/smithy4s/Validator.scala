@@ -27,7 +27,7 @@ sealed trait Validator[A, B] { self =>
 
   def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C, A, B0]): Validator[A, B0]
 
-  // todo: deprecated
+  // todo: deprecated, just chain validating
   def alsoValidating[C](constraint: C)(implicit
       ev: RefinementProvider.Simple[C, A]
   ): Validator[A, B] = validating(constraint)
@@ -44,15 +44,16 @@ object Validator {
     ): Validator[List[E], List[E]]
   }
 
-  // todo: add deprecation
+  // todo-old: add deprecation? Q: Why exactly? Use simple?
   def of[A, B](bijection: Bijection[A, B]): ValidatorBuilder[A, B] =
     new ValidatorBuilder[A, B](bijection)
 
   def simple[A]: Validator[A, A] = new DirectValidator[A](Vector.empty)
 
+  //todo: make it work for all collections
   def list[E]: Validator.ForList[E] = new ListValidator(None, Vector.empty)
 
-  // todo: deprecated
+  // todo-old: deprecated Q: why? because it's better to go to Validator directly, no need for an intermediate builder type.
   final class ValidatorBuilder[A, B] private[smithy4s] (
       bijection: Bijection[A, B]
   ) {

@@ -33,6 +33,7 @@ trait Refinement[A, B] { self =>
   def apply(a: A): Either[String, B]
   def from(b: B): A
 
+  //todo: not used for now
   def asSurjection: Surjection[A, B] = Surjection(apply, from)
 
   /**
