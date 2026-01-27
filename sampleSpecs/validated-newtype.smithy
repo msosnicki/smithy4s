@@ -20,9 +20,9 @@ structure ValidatedFoo {
 //new ones for collection constraints
 
 //doesn't make sense (noop)
-// @nameFormat
+@nameFormat
 // @validateNewtype
-// string ValidatedRefinedPrimitive
+string ValidatedRefinedPrimitive
 
 @length(max: 1)
 @validateNewtype
@@ -43,6 +43,21 @@ list ValidatedConstrainedList {
 // list ValidatedConstrainedListConstrainedMember {
 //     @length(max: 1)
 //     member: String
+// }
+
+// // SHOULD BE SUPPORTED - not yet
+// @validateNewtype
+// @length(max: 1)
+// list ValidatedConstrainedListRefinedMember {
+//     member: ValidatedRefinedPrimitive
+// }
+
+// SHOULD BE SUPPORTED - not yet
+// @validateNewtype
+// @length(max: 1)
+// list ValidatedConstrainedListRefinedConstrainedMember {
+//     @length(max:2)
+//     member: ValidatedRefinedPrimitive
 // }
 
 // @validateNewtype

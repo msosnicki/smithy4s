@@ -129,6 +129,7 @@ package object example {
   type UuidTrait = smithy4s.example.UuidTrait.Type
   type ValidatedConstrainedList = smithy4s.example.ValidatedConstrainedList.Type
   type ValidatedMap = smithy4s.example.ValidatedMap.Type
+  type ValidatedRefinedPrimitive = smithy4s.example.ValidatedRefinedPrimitive.Type
   type ValidatedString = smithy4s.example.ValidatedString.Type
 
 }

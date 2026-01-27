@@ -19,6 +19,7 @@ package smithy4s
 import smithy4s.schema.Schema.string
 import smithy4s.schema.Schema.list
 import smithy4s.refined.NonEmptyList
+import smithy4s.example.ValidatedRefinedPrimitive
 import munit.Assertions
 import cats.data.Validated.Valid
 import smithy.api.Length
@@ -65,15 +66,66 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
     expect(ValidatedListConstrainedMember(List("fo")).isLeft)
   }
 
-  test("Validated constrained list  constrained member".only) {
-    expect(ValidatedConstrainedListConstrainedMember(List("f")).isRight) // both valid
-    expect(ValidatedConstrainedListConstrainedMember(List("fg")).isLeft) // member invalid
+  test("Validated constrained list constrained member".only) {
+    expect(
+      ValidatedConstrainedListConstrainedMember(List("f")).isRight
+    ) // both valid
+    expect(
+      ValidatedConstrainedListConstrainedMember(List("fg")).isLeft
+    ) // member invalid
     expect(
       ValidatedConstrainedListConstrainedMember(List("f", "g")).isLeft
     ) // list invalid
     expect(
       ValidatedConstrainedListConstrainedMember(List("fg", "h")).isLeft
     ) // both invalid
+  }
+
+  test("Validated constrained list refined member".only) {
+    def mkName(str: String) = smithy4s.refined.Name(str) match {
+      case Left(msg) => fail(msg)
+      case Right(v)  => v
+    }
+    expect(
+      ValidatedConstrainedListRefinedMember(
+        List(ValidatedRefinedPrimitive(mkName("foo")))
+      ).isRight
+    )
+    expect(
+      ValidatedConstrainedListRefinedMember(
+        List(
+          ValidatedRefinedPrimitive(mkName("foo")),
+          ValidatedRefinedPrimitive(mkName("bar"))
+        )
+      ).isLeft
+    )
+  }
+
+  test("Validated constrained list refined constrained member".only) {
+    def mkName(str: String) = smithy4s.refined.Name(str) match {
+      case Left(msg) => fail(msg)
+      case Right(v)  => v
+    }
+    expect(
+      ValidatedConstrainedListRefinedConstrainedMember(
+        List(ValidatedRefinedPrimitive(mkName("fo")))
+      ).isRight
+    )
+    expect(
+      ValidatedConstrainedListRefinedConstrainedMember(
+        List(
+          ValidatedRefinedPrimitive(mkName("fo")),
+          ValidatedRefinedPrimitive(mkName("ba"))
+        )
+      ).isLeft
+    )
+    expect(
+      ValidatedConstrainedListRefinedConstrainedMember(
+        List(
+          ValidatedRefinedPrimitive(mkName("foo"))
+        )
+      ).isLeft
+    )
   }
 
   // test("Validated newtype map".ignore) {
@@ -221,7 +273,6 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
       validator.validate(a)
   }
 
-  // WIP - SHOULD BE SUPPORTED ======================================================
   type ValidatedConstrainedListConstrainedMember =
     ValidatedConstrainedListConstrainedMember.Type
   object ValidatedConstrainedListConstrainedMember
@@ -248,14 +299,6 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
             value(_)
           )
         )
-    // Validator
-    //   .of[List[String], ValidatedConstrainedListConstrainedMember](
-    //     Bijection[List[String], ValidatedConstrainedListConstrainedMember](
-    //       _.asInstanceOf[ValidatedConstrainedListConstrainedMember],
-    //       value(_)
-    //     )
-    //   )
-    //   .validating(smithy.api.Length(min = None, max = Some(1L)))
     implicit val schema: Schema[ValidatedConstrainedListConstrainedMember] =
       validator.toSchema(underlyingSchema)
     @inline def apply(
@@ -263,6 +306,94 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
     ): Either[String, ValidatedConstrainedListConstrainedMember] =
       validator.validate(a)
   }
+
+  type ValidatedConstrainedListRefinedMember =
+    ValidatedConstrainedListRefinedMember.Type
+
+  object ValidatedConstrainedListRefinedMember
+      extends ValidatedNewtype[List[ValidatedRefinedPrimitive]] {
+    val id: ShapeId =
+      ShapeId("smithy4s.example", "ValidatedConstrainedListRefinedMember")
+    val hints: Hints = Hints.empty
+    val underlyingSchema: Schema[List[ValidatedRefinedPrimitive]] =
+      list(ValidatedRefinedPrimitive.schema)
+        .withId(id)
+        .addHints(hints)
+        .validated(smithy.api.Length(min = None, max = Some(1L)))
+    val validator: Validator[List[
+      ValidatedRefinedPrimitive
+    ], ValidatedConstrainedListRefinedMember] = Validator
+      .of[List[
+        ValidatedRefinedPrimitive
+      ], ValidatedConstrainedListRefinedMember](
+        Bijection[List[
+          ValidatedRefinedPrimitive
+        ], ValidatedConstrainedListRefinedMember](
+          _.asInstanceOf[ValidatedConstrainedListRefinedMember],
+          value(_)
+        )
+      )
+      .validating(smithy.api.Length(min = None, max = Some(1L)))
+    implicit val schema: Schema[ValidatedConstrainedListRefinedMember] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(
+        a: List[ValidatedRefinedPrimitive]
+    ): Either[String, ValidatedConstrainedListRefinedMember] =
+      validator.validate(a)
+  }
+
+
+
+  type ValidatedConstrainedListRefinedConstrainedMember =
+    ValidatedConstrainedListRefinedConstrainedMember.Type
+
+//TODO: this should be scala import trait
+  implicit val refinedPrimitiveProvider: RefinementProvider.Simple[
+    smithy.api.Length,
+    ValidatedRefinedPrimitive
+  ] =
+    RefinementProvider.lengthConstraint(_.value.value.length)
+
+  object ValidatedConstrainedListRefinedConstrainedMember
+      extends ValidatedNewtype[List[ValidatedRefinedPrimitive]] {
+    val id: ShapeId = ShapeId(
+      "smithy4s.example",
+      "ValidatedConstrainedListRefinedConstrainedMember"
+    )
+    val hints: Hints = Hints.empty
+    val underlyingSchema: Schema[List[ValidatedRefinedPrimitive]] = list(
+      ValidatedRefinedPrimitive.schema
+        .addMemberHints()
+        .validated(smithy.api.Length(min = None, max = Some(2L)))
+    ).withId(id)
+      .addHints(hints)
+      .validated(smithy.api.Length(min = None, max = Some(1L)))
+    val validator: Validator[List[
+      ValidatedRefinedPrimitive
+    ], ValidatedConstrainedListRefinedConstrainedMember] =
+      Validator
+        .list[ValidatedRefinedPrimitive]
+        .validatingElement(smithy.api.Length(min = None, max = Some(2L)))
+        .validating(smithy.api.Length(min = None, max = Some(1L)))
+        .biject(
+          Bijection[List[
+            ValidatedRefinedPrimitive
+          ], ValidatedConstrainedListRefinedConstrainedMember](
+            _.asInstanceOf[ValidatedConstrainedListRefinedConstrainedMember],
+            value(_)
+          )
+        )
+    implicit val schema
+        : Schema[ValidatedConstrainedListRefinedConstrainedMember] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(
+        a: List[ValidatedRefinedPrimitive]
+    ): Either[String, ValidatedConstrainedListRefinedConstrainedMember] =
+      validator.validate(a)
+  }
+
+  // WIP - SHOULD BE SUPPORTED ======================================================
+
 
   // type ValidatedRefinedMemberRefinedList = ValidatedRefinedMemberRefinedList.Type
   // object ValidatedRefinedMemberRefinedList extends Newtype[NonEmptyList[ValidatedName]] {
