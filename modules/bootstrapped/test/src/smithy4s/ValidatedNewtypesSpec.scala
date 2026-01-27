@@ -55,14 +55,25 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   //   expect(ValidatedRefinedPrimitive("").isLeft)
   // }
 
-  test("Validated constrained list".only) {
+  test("Validated constrained list") {
     expect(ValidatedConstrainedList(List("foo")).isRight)
     expect(ValidatedConstrainedList(List("foo", "bar")).isLeft)
   }
 
-  test("Validated newtype member list".only) {
+  test("Validated list constrained member") {
     expect(ValidatedListConstrainedMember(List("f")).isRight)
     expect(ValidatedListConstrainedMember(List("fo")).isLeft)
+  }
+
+  test("Validated constrained list  constrained member".only) {
+    expect(ValidatedConstrainedListConstrainedMember(List("f")).isRight) // both valid
+    expect(ValidatedConstrainedListConstrainedMember(List("fg")).isLeft) // member invalid
+    expect(
+      ValidatedConstrainedListConstrainedMember(List("f", "g")).isLeft
+    ) // list invalid
+    expect(
+      ValidatedConstrainedListConstrainedMember(List("fg", "h")).isLeft
+    ) // both invalid
   }
 
   // test("Validated newtype map".ignore) {
@@ -146,22 +157,35 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   object ValidatedConstrainedList extends ValidatedNewtype[List[String]] {
     val id: ShapeId = ShapeId("smithy4s.example", "ValidatedConstrainedList")
     val hints: Hints = Hints.empty
-    val underlyingSchema: Schema[List[String]] = list(string).withId(id).addHints(hints).validated(smithy.api.Length(min = None, max = Some(1L)))
-    val validator: Validator[List[String], ValidatedConstrainedList] = 
-      // Validator.of[List[String], ValidatedConstrainedList](Bijection[List[String], ValidatedConstrainedList](_.asInstanceOf[ValidatedConstrainedList], value(_))).validating(smithy.api.Length(min = None, max = Some(1L)))
-        // should be:
-        Validator
-        .list[String]
-        .validating(smithy.api.Length(min = None, max = Some(1L)))
-        .biject(
+    val underlyingSchema: Schema[List[String]] = list(string)
+      .withId(id)
+      .addHints(hints)
+      .validated(smithy.api.Length(min = None, max = Some(1L)))
+    val validator: Validator[List[String], ValidatedConstrainedList] =
+      Validator
+        .of[List[String], ValidatedConstrainedList](
           Bijection[List[String], ValidatedConstrainedList](
             _.asInstanceOf[ValidatedConstrainedList],
             value(_)
           )
         )
-    
-    implicit val schema: Schema[ValidatedConstrainedList] = validator.toSchema(underlyingSchema)
-    @inline def apply(a: List[String]): Either[String, ValidatedConstrainedList] = validator.validate(a)
+        .validating(smithy.api.Length(min = None, max = Some(1L)))
+    // TODO:
+    // Validator
+    // .list[String]
+    // .validating(smithy.api.Length(min = None, max = Some(1L)))
+    // .biject(
+    //   Bijection[List[String], ValidatedConstrainedList](
+    //     _.asInstanceOf[ValidatedConstrainedList],
+    //     value(_)
+    //   )
+    // )
+
+    implicit val schema: Schema[ValidatedConstrainedList] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(
+        a: List[String]
+    ): Either[String, ValidatedConstrainedList] = validator.validate(a)
   }
 
   // COMPILING AND VALID ===================================================
@@ -169,7 +193,8 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   type ValidatedListConstrainedMember = ValidatedListConstrainedMember.Type
 
   object ValidatedListConstrainedMember extends ValidatedNewtype[List[String]] {
-    val id: ShapeId = ShapeId("smithy4s.example", "ValidatedListConstrainedMember")
+    val id: ShapeId =
+      ShapeId("smithy4s.example", "ValidatedListConstrainedMember")
     val hints: Hints = Hints.empty
     val underlyingSchema: Schema[List[String]] = list(
       string
@@ -190,12 +215,55 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
         )
     implicit val schema: Schema[ValidatedListConstrainedMember] =
       validator.toSchema(underlyingSchema)
-    @inline def apply(a: List[String]): Either[String, ValidatedListConstrainedMember] =
+    @inline def apply(
+        a: List[String]
+    ): Either[String, ValidatedListConstrainedMember] =
       validator.validate(a)
   }
 
-
   // WIP - SHOULD BE SUPPORTED ======================================================
+  type ValidatedConstrainedListConstrainedMember =
+    ValidatedConstrainedListConstrainedMember.Type
+  object ValidatedConstrainedListConstrainedMember
+      extends ValidatedNewtype[List[String]] {
+    val id: ShapeId =
+      ShapeId("smithy4s.example", "ValidatedConstrainedListConstrainedMember")
+    val hints: Hints = Hints.empty
+    val underlyingSchema: Schema[List[String]] = list(
+      string
+        .addMemberHints()
+        .validated(smithy.api.Length(min = None, max = Some(1L)))
+    ).withId(id)
+      .addHints(hints)
+      .validated(smithy.api.Length(min = None, max = Some(1L)))
+    val validator
+        : Validator[List[String], ValidatedConstrainedListConstrainedMember] =
+      Validator
+        .list[String]
+        .validatingElement(smithy.api.Length(min = None, max = Some(1L)))
+        .validating(smithy.api.Length(min = None, max = Some(1L)))
+        .biject(
+          Bijection[List[String], ValidatedConstrainedListConstrainedMember](
+            _.asInstanceOf[ValidatedConstrainedListConstrainedMember],
+            value(_)
+          )
+        )
+    // Validator
+    //   .of[List[String], ValidatedConstrainedListConstrainedMember](
+    //     Bijection[List[String], ValidatedConstrainedListConstrainedMember](
+    //       _.asInstanceOf[ValidatedConstrainedListConstrainedMember],
+    //       value(_)
+    //     )
+    //   )
+    //   .validating(smithy.api.Length(min = None, max = Some(1L)))
+    implicit val schema: Schema[ValidatedConstrainedListConstrainedMember] =
+      validator.toSchema(underlyingSchema)
+    @inline def apply(
+        a: List[String]
+    ): Either[String, ValidatedConstrainedListConstrainedMember] =
+      validator.validate(a)
+  }
+
   // type ValidatedRefinedMemberRefinedList = ValidatedRefinedMemberRefinedList.Type
   // object ValidatedRefinedMemberRefinedList extends Newtype[NonEmptyList[ValidatedName]] {
   //   val id: ShapeId = ShapeId("smithy4s.example", "ValidatedRefinedMemberRefinedList")
@@ -204,8 +272,7 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   //   implicit val schema: Schema[ValidatedRefinedMemberRefinedList] = bijection(underlyingSchema, asBijection)
   // }
 
-
-  // NOT SUPPORTED 
+  // NOT SUPPORTED
 
   // type ValidatedRefinedPrimitive = ValidatedRefinedPrimitive.Type
 
@@ -232,7 +299,7 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   // }
 
   // type ValidatedNonEmptyList = ValidatedNonEmptyList.Type
-  //todo: also noop for validation - doesn't make sense to add such constraint
+  // todo: also noop for validation - doesn't make sense to add such constraint
   // object ValidatedNonEmptyList extends ValidatedNewtype[NonEmptyList[String]] {
   //   val id: ShapeId = ShapeId("smithy4s.example", "ValidatedNonEmptyList")
   //   val hints: Hints = Hints(
@@ -255,10 +322,6 @@ class ValidatedNewtypesSpec() extends munit.FunSuite {
   //       a: NonEmptyList[String]
   //   ): Either[String, ValidatedNonEmptyList] = validator.validate(a)
   // }
-
-
-
-
 
   // type ValidatedRefinedListConstrainedMember = ValidatedRefinedListConstrainedMember.Type
 

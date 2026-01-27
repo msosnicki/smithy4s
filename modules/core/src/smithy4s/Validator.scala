@@ -42,6 +42,7 @@ sealed trait Validator[A, B] { self =>
 object Validator {
 
   sealed trait ForList[E] extends Validator[List[E], List[E]] {
+    //TODO: validatingMember?
     def validatingElement[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, E]
     ): Validator[List[E], List[E]]
