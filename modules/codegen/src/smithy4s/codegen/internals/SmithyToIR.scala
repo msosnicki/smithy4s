@@ -786,7 +786,7 @@ private[codegen] class SmithyToIR(
               x.namespace,
               x.name,
               externalOrBase,
-              isUnwrappedCollectionType.IndexedSeq
+              isUnwrapped
             )
           }
       }

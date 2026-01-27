@@ -25,8 +25,11 @@ sealed trait Validator[A, B] { self =>
       ev: RefinementProvider.Simple[C, A]
   ): Validator[A, B]
 
-  def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C, A, B0]): Validator[A, B0]
-
+  def refining[B0, C](constraint: C)(implicit ev: RefinementProvider[C, B, B0]): Validator[A, B0] = {
+    val f: Refinement.Aux[C, B, B0] = ev.make(constraint)
+    val v: Validator[A, B] = self
+    new Validator.RefinedValidator(v, f)
+  }
   // todo: deprecated, just chain validating
   def alsoValidating[C](constraint: C)(implicit
       ev: RefinementProvider.Simple[C, A]
@@ -71,8 +74,8 @@ object Validator {
       bijectTarget: Bijection[B, B0]
   ) extends Validator[A, B0] {
 
-    override def validateRefined[B1, C](constraint: C)(implicit ev: RefinementProvider[C,A,B1]): Validator[A,B1] = 
-      ???
+    // override def validateRefined[B1, C](constraint: C)(implicit ev: RefinementProvider[C,A,B1]): Validator[A,B1] = 
+    //   ???
 
     override def biject[B1](implicit
         bijection: Bijection[B0, B1]
@@ -112,8 +115,8 @@ object Validator {
         elementRefinements = elementRefinements
       )
 
-    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,List[Elem],B0]): Validator[List[Elem],B0] = 
-      new RefinedValidator(this, ev.make(constraint))
+    // override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,List[Elem],B0]): Validator[List[Elem],B0] = 
+    //   new RefinedValidator(this, ev.make(constraint))
 
     override def validatingElement[C](constraint: C)(implicit
         ev: RefinementProvider.Simple[C, Elem]
@@ -152,18 +155,29 @@ object Validator {
 
   }
 
+  // private class RefinedValidator[A, B](underlying: Validator[A, A], refinement: Refinement.Aux[_, A, B]) extends Validator[A, B] {
 
-  //issues: refinements do not compose - the definition of refine on main trait is impossible to be met in RefinedValidator if it wraps Validator[A, B]
-  private class RefinedValidator[A, B](underlying: Validator[A, A], refinement: Refinement.Aux[_, A, B]) extends Validator[A, B] {
+  //   override def refining[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
+  //     new RefinedValidator(underlying, ev.make(constraint))
 
-    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
-      new RefinedValidator(underlying, ev.make(constraint))
+  //   override def validate(value: A): Either[String,B] = underlying.validate(value).flatMap(refinement.apply)
+
+  //   override def toSchema(a: Schema[A]): Schema[B] = underlying.toSchema(a).refined(refinement)
+
+  //   override def validating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A]): Validator[A,B] = new RefinedValidator(underlying.validating(constraint), refinement)
+
+      
+  // }
+
+
+  private class RefinedValidator[A, B0, B, C0](underlying: Validator[A, B0], refinement: Refinement.Aux[C0, B0, B]) extends Validator[A, B] {
 
     override def validate(value: A): Either[String,B] = underlying.validate(value).flatMap(refinement.apply)
 
     override def toSchema(a: Schema[A]): Schema[B] = underlying.toSchema(a).refined(refinement)
 
-    override def validating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A]): Validator[A,B] = new RefinedValidator(underlying.validating(constraint), refinement)
+    override def validating[C](constraint: C)(implicit ev: RefinementProvider.Simple[C,A]): Validator[A,B] = 
+      new RefinedValidator(underlying.validating(constraint), refinement)
 
       
   }
@@ -172,8 +186,8 @@ object Validator {
       refinements: Vector[Refinement.Aux[_, A, A]]
   ) extends Validator[A, A] {
 
-    override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
-      new RefinedValidator(this, ev.make(constraint))
+    // override def validateRefined[B0, C](constraint: C)(implicit ev: RefinementProvider[C,A,B0]): Validator[A,B0] = 
+    //   new RefinedValidator(this, ev.make(constraint))
 
     override def validate(value: A): Either[String, A] = {
       refinements
